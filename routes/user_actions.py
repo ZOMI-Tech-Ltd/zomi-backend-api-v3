@@ -34,6 +34,161 @@ def get_current_user_id():
     
     return None
 
+@user_actions_bp.route('/taste/userTotal', methods=['POST'])
+@jwt_required()
+def get_user_taste_total():
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+    
+    result = UserActionService.get_user_taste_total(
+        user_id=current_user_id
+    )
+    if result['code'] == 0:
+        return create_response(code=0, data=result['data'], message=result['msg']), 200
+    else:
+        return create_response(code=result['code'], message=result['msg']), result['code']
+
+
+
+@user_actions_bp.route('/taste/<string:taste_id>', methods=['GET'])
+@jwt_required()
+def get_taste(taste_id):
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+    
+    result = UserActionService.get_taste(
+        user_id=current_user_id,
+        taste_id=taste_id
+    )
+    
+    if result['code'] == 0:
+        return create_response(code=0, data=result['data'], message="Success"), 200
+    else:
+        return create_response(code=result['code'], message=result['msg']), result['code']
+
+
+
+@user_actions_bp.route('/taste/createMany', methods=['POST'])
+@jwt_required()
+def create_many_tastes():
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+
+    #iterate over items in request body
+    items = request.get_json()['items']
+
+    results = []
+    for item in items:
+        result = UserActionService.create_taste(
+            user_id=current_user_id,
+            dish_id=item.get('dishId',""),
+            comment=item.get('comment',""),
+            media_ids=item.get('mediaIds',[]),
+            mood=item.get('mood',0),
+            tags=item.get('tags',[]),
+        )
+        results.append(result)
+
+    if all(result['code'] == 0 for result in results):
+        return create_response(code=0, data=results, message="Taste created successfully"), 200
+    else:
+        return create_response(code=500, message="Failed to create tastes"), 500
+
+
+
+@user_actions_bp.route('/taste/create', methods=['POST'])
+@jwt_required()
+def create_taste():
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+    
+    data = request.get_json()
+
+    result = UserActionService.create_taste(
+        user_id=current_user_id,
+        dish_id=data.get('dishId',""),
+        comment=data.get('comment',""),
+        media_ids=data.get('mediaIds',[]),
+        mood=data.get('mood',0),
+        tags=data.get('tags',[]),
+    )
+
+
+    if result['code'] == 0:
+        return create_response(code=0, data=result['data'], message="Taste created successfully"), 200
+    else:
+        return create_response(code=result['code'], message=result['msg']), result['code']
+
+
+
+
+@user_actions_bp.route('/taste/edit/<string:taste_id>', methods=['PUT'])
+@jwt_required()
+def edit_taste(taste_id):
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+    
+    # Get request data
+    data = request.get_json()
+    
+    # Validate request data
+    if not data:
+        return create_response(code=400, message="Request body is required"), 400
+    
+
+    result = UserActionService.edit_taste(
+        user_id=current_user_id,
+        dish_id=data.get('dishId',""),
+        comment=data.get('comment',""),
+        media_ids=data.get('mediaIds', []),
+        mood=data.get('mood', 0),
+        tags=data.get('tags', [])
+    )
+    
+    if result['code'] == 0:
+        return create_response(code=0, data=result['data'], message="Taste updated successfully"), 200
+    elif result['code'] == 404:
+        return create_response(code=404, message=result['msg']), 404
+    elif result['code'] == 403:
+        return create_response(code=403, message=result['msg']), 403
+    else:
+        return create_response(code=500, message=result['msg']), 500
+
+
+@user_actions_bp.route('/taste/delete', methods=['POST'])
+@jwt_required()
+def delete_taste():
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=401, message="User authentication required"), 401
+    
+    data = request.get_json()
+    taste_id = data.get('id',"")
+
+    result = UserActionService.delete_taste(
+        user_id=current_user_id,
+        taste_id=taste_id
+    )
+
+    if result['code'] == 0:
+        return create_response(code=0, message="Taste deleted successfully"), 200
+    else:
+        return create_response(code=result['code'], message=result['msg']), result['code']  
+
+
+
+
 
 @user_actions_bp.route('/merchant/<string:merchant_id>/user-items', methods=['GET'])
 @jwt_required()

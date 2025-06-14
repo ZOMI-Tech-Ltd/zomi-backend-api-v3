@@ -3,6 +3,34 @@ from datetime import datetime
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.sql import func
 import uuid
+from enum import IntEnum
+
+
+class TasteRecommendState(IntEnum):
+    DEFAULT = 0
+    YES = 1
+    NO = 2
+
+
+class TasteState(IntEnum):
+    DEFAULT = 0
+    RECOMMEND = 1
+    NOT_RECOMMEND = 2
+    COMMENT = 3
+    MEDIA = 4
+    COMMENT_AND_MEDIA = 5
+    GENERAL = 100
+    COMPLETE = 500
+
+
+class Mood(IntEnum):
+    DEFAULT = 0
+    MUST_TRY = 1
+    TO_BE_REPEATED = 2
+    WORTH_A_SHOT = 3
+
+
+
 
 class Taste(db.Model):
 
@@ -16,7 +44,7 @@ class Taste(db.Model):
     recommendState = db.Column(db.Integer, nullable=False, default = 1)
     usefulTotal = db.Column(db.Integer, nullable=False, default = 0)
     flow_document = db.Column(db.JSON, default = {"test":"test"})
-
+    tags = db.Column(db.JSON)
     mediaIds = db.Column(db.JSON)
     userId = db.Column(db.String(50), db.ForeignKey('users._id'), nullable=False)
     mood = db.Column(db.Integer)
@@ -38,6 +66,42 @@ class Taste(db.Model):
     __table_args__ =(
         db.UniqueConstraint('userId', 'dishId', name='_user_dish_taste_uc'),
     )
+
+
+
+    # calculates states after editing a taste
+    def calculate_state(self):
+        state = TasteState.DEFAULT
+        
+        if self.recommendState == TasteRecommendState.YES:
+            state = TasteState.RECOMMEND
+        elif self.recommendState == TasteRecommendState.NO:
+            state = TasteState.NOT_RECOMMEND
+        
+        # General evaluation
+        if self.mood > Mood.DEFAULT or len(self.tags) > 0 or self.comment or len(self.mediaIds) > 0:
+            state = TasteState.GENERAL
+        
+        if self.comment:
+            state = TasteState.COMMENT
+        
+        if len(self.mediaIds) > 0:
+            state = TasteState.MEDIA
+        
+        if self.comment and len(self.mediaIds) > 0:
+            state = TasteState.COMMENT_AND_MEDIA
+        
+        # Complete evaluation
+        if (self.mood > Mood.DEFAULT and self.comment and 
+            len(self.mediaIds) > 0 and len(self.tags) > 0):
+            state = TasteState.COMPLETE
+        
+        return state
+    
+
+
+
+
 
     def __repr__(self):
         return f"<Taste(id={self._id}, dishId={self.dishId}, mediaIds={self.mediaIds}, mood={self.mood}, state={self.state}, createdAt={self.createdAt}, updatedAt={self.updatedAt})>"

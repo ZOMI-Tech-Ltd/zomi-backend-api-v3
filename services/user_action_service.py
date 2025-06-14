@@ -8,8 +8,8 @@ from datetime import datetime
 from utils.response_utils import create_response
 from sqlalchemy.orm import joinedload
 from models.merchant import Merchant
-
-
+from models.media import Media
+from models.taste import TasteRecommendState
 class UserActionService:
 
     OBJECT_TYPE_DISH = 'DISH' 
@@ -262,8 +262,6 @@ class UserActionService:
             return create_response(code=500, message="Failed to like", data=None)
         
         
-
-
     @staticmethod
     def unlike_taste(user_id, taste_id):
         like = Like.query.filter_by(
@@ -291,4 +289,233 @@ class UserActionService:
             print(f"Error unliking taste: {e}")
             return create_response(code=500, message="Failed to unlike", data=None)
         
+    
+    @staticmethod
+    def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=1):
+        try:
+            # Find the taste
+            taste = Taste.query.filter_by(
+                dishId=dish_id,
+                userId=user_id
+            ).first()
+            
+            if not taste:
+                return create_response(code=404, message="Taste not found or you don't have permission to edit")
+            
+            # Update fields if provided
+            if comment is not None:
+                taste.comment = comment
+            
+            if recommend_state is not None:
+                if recommend_state not in [0, 1, 2]:
+                    return create_response(code=400, message="Invalid recommend state")
+                taste.recommendState = recommend_state
+            
+            if media_ids is not None:
+                #check if media ids exist in media table
+                media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
+                if len(media_ids) != len(media_ids):
+                    return create_response(code=400, message="Invalid media ids")   
+                taste.mediaIds = media_ids
+            
+            if mood is not None:
+                if mood not in [0, 1, 2, 3]:
+                    return create_response(code=400, message="Invalid mood value")
+                taste.mood = mood
+            
+            if tags is not None:
+                taste.tags = tags
+            
+            # Update verification status since content changed
+            taste.isVerified = False
+            
+            # Recalculate state based on new values
+            taste.state = taste.calculate_state()
+            
+            # Update timestamp
+            taste.updatedAt = datetime.utcnow()
+            
+            # Commit changes
+            db.session.commit()
+
+            # Update dish statistics if recommendation state changed
+            if recommend_state is not None:
+                UserActionService._update_dish_recommend_count(taste.dishId)
+             
+            return create_response(
+                code=0, 
+                data={
+                    "id": taste._id,
+                    "state": taste.state,
+                    "recommendState": taste.recommendState
+                },
+                message="Taste updated successfully"
+            )
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error editing taste: {e}")
+            return create_response(code=500, message="Failed to update taste")
+
+
+    @staticmethod
+    def _update_dish_recommend_count(dish_id):
+        """
+        Update the recommendation count for a dish.
         
+        Args:
+            dish_id: The dish ID
+        """
+        try:
+            # Count recommendations for this dish
+            recommend_count = Taste.query.filter_by(
+                dishId=dish_id,
+                recommendState=TasteRecommendState.YES
+            ).count()
+            
+            # Update dish
+            db.session.execute(
+                db.update(Dish)
+                .where(Dish._id == dish_id)
+                .values(recommendedCount=recommend_count)
+            )
+            
+            db.session.commit()
+        except Exception as e:
+            print(f"Error updating dish recommend count: {e}")
+
+
+    @staticmethod
+    def get_taste(user_id, taste_id):
+        try:
+            taste = Taste.query.filter_by(
+                _id=taste_id,
+                userId=user_id
+            ).first()
+            
+            if not taste:
+                return create_response(code=404, message="Taste not found")
+            
+            taste_data = {
+                "id": taste._id,
+                "dishId": taste.dishId,
+                "comment": taste.comment,
+                "recommendState": taste.recommendState,
+                "mediaIds": taste.mediaIds or [],
+                "mood": taste.mood,
+                "tags": taste.tags or [],
+                "state": taste.state,
+                "isVerified": taste.isVerified,
+                "usefulTotal": taste.usefulTotal,
+                "createdAt": taste.createdAt.isoformat() if taste.createdAt else None,
+                "updatedAt": taste.updatedAt.isoformat() if taste.updatedAt else None
+            }
+        
+            return create_response(code=0, data=taste_data, message="Success")
+        
+        except Exception as e:
+            print(f"Error getting taste: {e}")
+            return create_response(code=500, message="Failed to get taste")
+
+
+    @staticmethod
+    def get_user_taste_total(user_id):
+        try:
+            # Count total tastes for the user
+            total_tastes = Taste.query.filter_by(userId=user_id).count()
+            
+            return create_response(
+                code=0,
+                data={
+                    "total": total_tastes
+                },
+                message="Success"
+            )
+        
+        except Exception as e:
+            print(f"Error getting user taste total: {e}")
+            return create_response(code=500, message="Failed to get user taste total")
+
+    @staticmethod
+    def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=1):
+        try:
+            taste = Taste(
+                userId=user_id,
+                dishId=dish_id,
+                comment=comment,
+                recommendState=recommend_state,
+                mediaIds=media_ids,
+                mood=mood,
+                tags=tags,
+                flow_document = {"Source":"UGC Flow"},
+            )
+            # Update fields if provided
+            if comment is not None:
+                taste.comment = comment
+            
+            if recommend_state is not None:
+                if recommend_state not in [0, 1, 2]:
+                    return create_response(code=400, message="Invalid recommend state")
+                taste.recommendState = recommend_state
+            
+            if media_ids is not None:
+                #check if media ids exist in media table
+                media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
+                if len(media_ids) != len(media_ids):
+                    return create_response(code=400, message="Invalid media ids")   
+                taste.mediaIds = media_ids
+            
+            if mood is not None:
+                if mood not in [0, 1, 2, 3]:
+                    return create_response(code=400, message="Invalid mood value")
+                taste.mood = mood
+            
+            if tags is not None:
+                taste.tags = tags
+            
+            # Update verification status since content changed
+            taste.isVerified = False
+            
+            # Recalculate state based on new values
+            taste.state = taste.calculate_state()
+            
+            # Update timestamp
+            taste.updatedAt = datetime.utcnow()
+            
+            # Commit changes
+            db.session.add(taste)
+            db.session.commit()
+
+            # Update dish statistics if recommendation state changed
+            if recommend_state is not None:
+                UserActionService._update_dish_recommend_count(taste.dishId)
+             
+            return create_response(
+                code=0, 
+                data={
+                    "id": taste._id,
+                    "state": taste.state,
+                    "recommendState": taste.recommendState
+                },
+                message="Taste created successfully"
+            )
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating taste: {e}")
+            return create_response(code=500, message="Failed to create taste")
+
+    @staticmethod
+    def delete_taste(user_id, taste_id):
+        taste = Taste.query.filter_by(
+            _id=taste_id,
+            userId=user_id
+        ).first()
+
+        if not taste:
+            return create_response(code=404, message="Taste not found")
+
+        db.session.delete(taste)
+        db.session.commit()
+        return create_response(code=0, message="Taste deleted successfully")
+

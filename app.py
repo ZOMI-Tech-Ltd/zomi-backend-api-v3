@@ -22,7 +22,7 @@ def create_app():
     app.config.from_object(Config)
     #initialize extensions
     init_extensions(app)
-
+    print(app.config['SQLALCHEMY_DATABASE_URI'])
 
     app.register_blueprint(dish_bp)
     app.register_blueprint(user_actions_bp)
