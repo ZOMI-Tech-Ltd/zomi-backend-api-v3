@@ -28,7 +28,7 @@ class DishOverviewSchema(ma.Schema):
     recommendedCount = ma.Integer(required= True, dump_default=None)
 
     #merchant info
-    merchant = ma.Nested(MerchantSchema, only=('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions', 'webUrl', 'ThirdPartyDeliveryItems'))
+    merchant = ma.Nested(MerchantSchema, only=('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions', 'webUrl', 'thirdPartyDeliveryItems'))
 
 
     #tag fields

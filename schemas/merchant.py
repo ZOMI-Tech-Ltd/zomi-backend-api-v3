@@ -17,7 +17,7 @@ class MerchantSchema(ma.Schema):
     verified = ma.Boolean(required=False, dump_default=False)
     webUrl = ma.Method('get_website_if_verified', allow_none=True)
 
-    ThirdPartyDeliveryItems = ma.Method('get_third_party_delivery_items', allow_none=True)
+    thirdPartyDeliveryItems = ma.Method('get_third_party_delivery_items', allow_none=True)
 
     def get_icon_dimensions(self, obj):
         return getattr(obj, '_icon_dimensions', None)
@@ -54,7 +54,7 @@ class MerchantSchema(ma.Schema):
         return obj._third_party_delivery_items_cache
 
     class Meta:
-        fields = ('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions', 'webUrl', 'ThirdPartyDeliveryItems')
+        fields = ('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions', 'webUrl', 'thirdPartyDeliveryItems')
 
 
 class MerchantDeliverySchema(ma.Schema):
