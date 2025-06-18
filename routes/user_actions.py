@@ -230,7 +230,7 @@ def recommend_dish(dish_id):
     else:
         status_code = 200
     
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+    return create_response(code=status_code, data=result['data'], message=result['msg']), 200
 
 
 @user_actions_bp.route('/dish/recommend/<string:dish_id>', methods=['DELETE'])
@@ -249,7 +249,7 @@ def unrecommend_dish(dish_id):
     else:
         status_code = 200
 
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+    return create_response(code=status_code, data=result['data'], message=result['msg']), 200
 
 
 
@@ -266,7 +266,7 @@ def collect_dish(dish_id):
         status_code = 0
     else:   
         status_code = 200
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+    return create_response(code=status_code, data=result['data'], message=result['msg']), 200
 
 
 
