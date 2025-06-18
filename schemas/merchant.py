@@ -14,8 +14,8 @@ class MerchantSchema(ma.Schema):
     delivery_links = ma.Method('get_delivery_links', allow_none=True)
     external_ids = ma.Raw(dump_only=True)
 
-    verified = ma.Boolean(required=False, dump_default=False)
-    webUrl = ma.Method('get_website_if_verified', allow_none=True)
+    partnership_status = ma.Str(required=False, dump_default=False)
+    webUrl = ma.Method('get_subdomain_name', allow_none=True)
 
     thirdPartyDeliveryItems = ma.Method('get_third_party_delivery_items', allow_none=True)
 
@@ -25,9 +25,9 @@ class MerchantSchema(ma.Schema):
 
 
 
-    def get_website_if_verified(self, obj):
-        if getattr(obj, 'isVerified',False) and hasattr(obj, 'website'):
-            return obj.website
+    def get_subdomain_name(self, obj):
+        if getattr(obj,"partnership_status")=='ACTIVE' and hasattr(obj,"subdomainName"):
+            return ''.join(['https://',obj.subdomainName,'.zomi.menu'])
         return None
     
 

@@ -13,8 +13,8 @@ class Merchant(db.Model):
 
 
 
-    isVerified = db.Column("isVerified", nullable=False)
-    website = db.Column(db.String(300), nullable=True)    
+    partnership_status = db.Column("partnership_status", nullable=False)
+    subdomainName = db.Column("subDomainName", nullable=True)    
 
 
     #address

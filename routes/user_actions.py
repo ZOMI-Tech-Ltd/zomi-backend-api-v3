@@ -40,7 +40,7 @@ def get_user_taste_total():
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
     
     result = UserActionService.get_user_taste_total(
         user_id=current_user_id
@@ -48,7 +48,7 @@ def get_user_taste_total():
     if result['code'] == 0:
         return create_response(code=0, data=result['data'], message=result['msg']), 200
     else:
-        return create_response(code=result['code'], message=result['msg']), result['code']
+        return create_response(code=200, message=result['msg']), 200
 
 
 
@@ -58,7 +58,7 @@ def get_taste(taste_id):
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+            return create_response(code=200, message="User authentication required"), 200
     
     result = UserActionService.get_taste(
         user_id=current_user_id,
@@ -68,7 +68,7 @@ def get_taste(taste_id):
     if result['code'] == 0:
         return create_response(code=0, data=result['data'], message="Success"), 200
     else:
-        return create_response(code=result['code'], message=result['msg']), result['code']
+        return create_response(code=200, message=result['msg']), 200
 
 
 
@@ -78,7 +78,7 @@ def create_many_tastes():
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
 
     #iterate over items in request body
     items = request.get_json()['items']
@@ -99,7 +99,7 @@ def create_many_tastes():
     if all(result['code'] == 0 for result in results):
         return create_response(code=0, data=results, message="Taste created successfully"), 200
     else:
-        return create_response(code=500, message="Failed to create tastes"), 500
+        return create_response(code=200, message="Failed to create tastes"), 200
 
 
 
@@ -109,7 +109,7 @@ def create_taste():
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
     
     data = request.get_json()
 
@@ -126,7 +126,7 @@ def create_taste():
     if result['code'] == 0:
         return create_response(code=0, data=result['data'], message="Taste created successfully"), 200
     else:
-        return create_response(code=result['code'], message=result['msg']), result['code']
+        return create_response(code=200, message=result['msg']), 200
 
 
 
@@ -137,7 +137,7 @@ def edit_taste(taste_id):
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
     
     # Get request data
     data = request.get_json()
@@ -158,12 +158,8 @@ def edit_taste(taste_id):
     
     if result['code'] == 0:
         return create_response(code=0, data=result['data'], message="Taste updated successfully"), 200
-    elif result['code'] == 404:
-        return create_response(code=404, message=result['msg']), 404
-    elif result['code'] == 403:
-        return create_response(code=403, message=result['msg']), 403
     else:
-        return create_response(code=500, message=result['msg']), 500
+        return create_response(code=200, message=result['msg']), 200
 
 
 @user_actions_bp.route('/taste/delete', methods=['POST'])
@@ -172,7 +168,7 @@ def delete_taste():
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
     
     data = request.get_json()
     taste_id = data.get('id',"")
@@ -185,7 +181,7 @@ def delete_taste():
     if result['code'] == 0:
         return create_response(code=0, message="Taste deleted successfully"), 200
     else:
-        return create_response(code=result['code'], message=result['msg']), result['code']  
+        return create_response(code=200, message=result['msg']), 200
 
 
 
@@ -206,7 +202,7 @@ def get_user_merchant_items(merchant_id):
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=401, message="User authentication required"), 401
+        return create_response(code=200, message="User authentication required"), 200
     
     result = UserActionService.get_user_merchant_items(
         user_id=current_user_id,
@@ -214,7 +210,7 @@ def get_user_merchant_items(merchant_id):
     )
     
     # Response already formatted by service
-    return jsonify(result), result.get('code', 0) == 0 and 200 or 404
+    return create_response(code=200, data=result['data'], message=result['msg']), 200
 
 
 # recommend dish
@@ -230,12 +226,11 @@ def recommend_dish(dish_id):
     )
     
     if result['code']==0:
-        status_code = 200
-    elif result['code']==409:
-        status_code = 409
+        status_code = 0
     else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+        status_code = 200
+    
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
 
 
 @user_actions_bp.route('/dish/recommend/<string:dish_id>', methods=['DELETE'])
@@ -250,12 +245,11 @@ def unrecommend_dish(dish_id):
     )
 
     if result['code']==0:
-        status_code = 200
-    elif result['code']==409:
-        status_code = 409
+        status_code = 0
     else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+        status_code = 200
+
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
 
 
 
@@ -269,12 +263,10 @@ def collect_dish(dish_id):
         dish_id=dish_id
     )
     if result['code']==0:
+        status_code = 0
+    else:   
         status_code = 200
-    elif result['code']==409:
-        status_code = 409
-    else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
 
 
 
@@ -288,12 +280,10 @@ def uncollect_dish(dish_id):
         dish_id=dish_id
     )
     if result['code']==0:
-        status_code = 200
-    elif result['code']==409:
-        status_code = 409
+        status_code = 0
     else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+        status_code = 200
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['POST'])
@@ -305,12 +295,10 @@ def like_taste(taste_id):
         taste_id=taste_id
     )
     if result['code']==0:
-        status_code = 200
-    elif result['code']==409:
-        status_code = 409
+        status_code =0
     else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+        status_code = 200
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['DELETE'])
@@ -322,9 +310,7 @@ def unlike_taste(taste_id):
         taste_id=taste_id
     )
     if result['code']==0:
-        status_code = 200
-    elif result['code']==409:
-        status_code = 409
+        status_code = 0
     else:
-        status_code = 404
-    return create_response(code=result['code'], data=result['data'], message=result['msg']), status_code
+        status_code = 200
+    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
