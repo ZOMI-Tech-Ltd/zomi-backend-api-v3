@@ -14,38 +14,47 @@ class MerchantSchema(ma.Schema):
     delivery_links = ma.Method('get_delivery_links', allow_none=True)
     external_ids = ma.Raw(dump_only=True)
 
+    verified = ma.Boolean(required=False, dump_default=False)
+    webUrl = ma.Method('get_website_if_verified', allow_none=True)
 
+    ThirdPartyDeliveryItems = ma.Method('get_third_party_delivery_items', allow_none=True)
 
     def get_icon_dimensions(self, obj):
         return getattr(obj, '_icon_dimensions', None)
         
+
+
+
+    def get_website_if_verified(self, obj):
+        if getattr(obj, 'isVerified',False) and hasattr(obj, 'website'):
+            return obj.website
+        return None
     
-    def get_delivery_links(self, obj):
-        if not hasattr(obj, '_delivery_links_cache'):
-            
-            delivery_links = []
-            
-            if obj.external_ids:
-                # Get all active platforms
-                platforms = ThirdPartyDelivery.get_all_active_platforms()
+
+
+    def get_third_party_delivery_items(self, obj):
+        if not hasattr(obj, '_third_party_delivery_items_cache'):
+            obj._third_party_delivery_items_cache = []
+            platforms = ThirdPartyDelivery.get_all_active_platforms()
+            merchant_external_ids = obj.get_all_external_ids()
                 
-                for platform in platforms:
-                    external_id = obj.external_ids.get(platform.platform_key)
-                    if external_id:
-                        delivery_url = platform.construct_url(external_id)
-                        if delivery_url:
-                            delivery_links.append({
-                                "platform_name": platform.name,
-                                "platform_key": platform.platform_key,
-                                "delivery_url": delivery_url
-                            })
-            
-            obj._delivery_links_cache = delivery_links
+            for platform in platforms:
+                external_id = merchant_external_ids.get(platform.name)
+                if external_id:
+                    delivery_url = platform.construct_url(external_id)
+                    if delivery_url:
+                        obj._third_party_delivery_items_cache.append(
+                        {
+                            "id": platform._id,
+                            "name": platform.name,
+                            "redirect_url": delivery_url,
+                            "icon": platform.icon
+                        })
         
-        return obj._delivery_links_cache
+        return obj._third_party_delivery_items_cache
 
     class Meta:
-        fields = ('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions')
+        fields = ('_id', 'name', 'opening', 'distance_km', 'icon', 'icon_dimensions', 'webUrl', 'ThirdPartyDeliveryItems')
 
 
 class MerchantDeliverySchema(ma.Schema):

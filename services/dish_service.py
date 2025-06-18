@@ -103,31 +103,32 @@ class DishService:
             dish._is_recommended = is_recommended
 
             
-            # get delivery links
-            dish._third_party_delivery_items = []
-            try:
-                # Get all active delivery platforms
-                platforms = ThirdPartyDelivery.get_all_active_platforms()
-                merchant_external_ids = merchant.get_all_external_ids()
+            # # get delivery links
+            # dish._third_party_delivery_items = []
+            # try:
+            #     # Get all active delivery platforms
+            #     platforms = ThirdPartyDelivery.get_all_active_platforms()
+            #     merchant_external_ids = merchant.get_all_external_ids()
                 
-                for platform in platforms:
-                    external_id = merchant_external_ids.get(platform.name)
-                    if external_id:
-                        delivery_url = platform.construct_url(external_id)
-                        if delivery_url:
-                            dish._third_party_delivery_items.append(
-                            {
-                                "id": platform._id,
-                                "name": platform.name,
-                                "redirect_url": delivery_url,
-                                "icon": platform.icon
-                            })
-            except Exception as e:
-                print(f"Error getting delivery links: {e}")
-                dish._third_party_delivery_items = []
+            #     for platform in platforms:
+            #         external_id = merchant_external_ids.get(platform.name)
+            #         if external_id:
+            #             delivery_url = platform.construct_url(external_id)
+            #             if delivery_url:
+            #                 dish._third_party_delivery_items.append(
+            #                 {
+            #                     "id": platform._id,
+            #                     "name": platform.name,
+            #                     "redirect_url": delivery_url,
+            #                     "icon": platform.icon
+            #                 })
+            # except Exception as e:
+            #     print(f"Error getting delivery links: {e}")
+            #     dish._third_party_delivery_items = []
             
 
             result = dish_overview_schema.dump(dish)
+
             return create_response(code=0, data=result, message="Success")
         
         except Exception as e:

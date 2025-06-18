@@ -11,12 +11,20 @@ class Merchant(db.Model):
     latitude = db.Column("geoCoordinate/lat", db.Float, nullable=True)
     longitude = db.Column("geoCoordinate/lng", db.Float, nullable=True)
 
+
+
+    isVerified = db.Column("isVerified", nullable=False)
+    website = db.Column(db.String(300), nullable=True)    
+
+
     #address
     address = db.Column(db.String(200), nullable=False)
         
     #add icon
     icon = db.Column("brandIcon", db.String(200), nullable=True)
     
+
+
     #add external id
     external_id_dd = db.Column("externalIds/DOORDASH", db.String(200), nullable=True)
     external_id_ub = db.Column("externalIds/UBER_EATS", db.String(200), nullable=True)

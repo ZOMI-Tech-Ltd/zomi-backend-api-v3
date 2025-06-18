@@ -31,7 +31,6 @@ def get_dish_overview(dish_id):
     current_user_id = get_current_user_id()
 
     response = DishService.get_dish_overview(dish_id, lat, lon, current_user_id)
-    
     if response['code'] == 0:
         return create_response(code=0,data=response['data'], message=response['msg']), 200
     
