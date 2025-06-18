@@ -144,7 +144,7 @@ def edit_taste(taste_id):
     
     # Validate request data
     if not data:
-        return create_response(code=400, message="Request body is required"), 400
+        return create_response(code=200, message="Request body is required"), 200
     
 
     result = UserActionService.edit_taste(
@@ -279,11 +279,8 @@ def uncollect_dish(dish_id):
         user_id=current_user_id,
         dish_id=dish_id
     )
-    if result['code']==0:
-        status_code = 0
-    else:
-        status_code = 200
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+    
+    return create_response(code=200, data=result['data'], message=result['msg']), 200
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['POST'])
@@ -294,11 +291,8 @@ def like_taste(taste_id):
         user_id=current_user_id,
         taste_id=taste_id
     )
-    if result['code']==0:
-        status_code =0
-    else:
-        status_code = 200
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+    
+    return create_response(code=200, data=result['data'], message=result['msg']), 200
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['DELETE'])
@@ -309,8 +303,5 @@ def unlike_taste(taste_id):
         user_id=current_user_id,
         taste_id=taste_id
     )
-    if result['code']==0:
-        status_code = 0
-    else:
-        status_code = 200
-    return create_response(code=status_code, data=result['data'], message=result['msg']), status_code
+
+    return create_response(code=200, data=result['data'], message=result['msg']), 200

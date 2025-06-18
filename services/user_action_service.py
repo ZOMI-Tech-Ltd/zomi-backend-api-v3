@@ -183,7 +183,9 @@ class UserActionService:
         if existing_collection:
             return create_response(code=409, message="Already collected", data=None)
 
-        new_collection = Collection(user=user_id, object=dish_id, objectType=UserActionService.OBJECT_TYPE_DISH)
+        new_collection = Collection(user=user_id, object=dish_id, objectType=UserActionService.OBJECT_TYPE_DISH,
+                                    flow_document = {"Source":"Collect dish by user"})
+                                    
         db.session.add(new_collection)
 
         try:
@@ -230,7 +232,7 @@ class UserActionService:
         existing_like = Like.query.filter_by(
             user=user_id,
             object=taste_id,
-            objectType=UserActionService.OBJECT_TYPE_TASTE
+            objectType=UserActionService.OBJECT_TYPE_TASTE,
         ).first()
 
         if existing_like:
@@ -242,7 +244,9 @@ class UserActionService:
             objectType=UserActionService.OBJECT_TYPE_TASTE,
             createdAt=datetime.utcnow(),
             updatedAt=datetime.utcnow(),
-            flow_published_at=datetime.utcnow()
+            flow_published_at=datetime.utcnow(),
+            flow_document = {"Source":"Like taste by user"},
+            state = 1
         )
 
         db.session.add(new_like)

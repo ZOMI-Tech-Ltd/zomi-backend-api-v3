@@ -29,6 +29,9 @@ class Like(db.Model):
     # Relationships
     user_relation = db.relationship('User', back_populates = 'user_likes', lazy = True)
     
+    #state
+    state = db.Column(db.Integer, nullable=False, default=0)
+
     # Unique constraint to prevent duplicate likes by same user on same object type
     __table_args__ = (
         db.UniqueConstraint('user', 'object', 'objectType', name='_user_object_type_like_uc'),
