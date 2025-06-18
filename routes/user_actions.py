@@ -93,6 +93,7 @@ def create_many_tastes():
             mood=item.get('mood',0),
             tags=item.get('tags',[]),
         )
+        print(result)
         results.append(result)
 
     if all(result['code'] == 0 for result in results):

@@ -45,7 +45,7 @@ class DishOverviewSchema(ma.Schema):
     isCollected = ma.Boolean(attribute='_is_collected', dump_only=True)
     isRecommended = ma.Boolean(attribute='_is_recommended', dump_only=True)
 
-
+    thirdPartyDeliveryItems = ma.List(ma.Dict, attribute='_third_party_delivery_items', dump_only=True, allow_none = True)
 
     def get_image_data(self, obj):
         if not obj.media:
@@ -102,7 +102,8 @@ class DishOverviewSchema(ma.Schema):
             "yelp": getattr(obj, 'yelp_rating', None)
         }
 
-
+    def get_third_party_delivery_items(self, obj):
+        return {}
 
     def get_ingredients(self, obj):
         return getattr(obj, '_ingredients_data', [])
@@ -113,7 +114,7 @@ class DishOverviewSchema(ma.Schema):
             '_id', 'title', 'images', 
             'price', 'ratings',
                 'recommendedCount', 'merchant', 'flavorTags', 
-                'uniqueTags', 'ingredients', 'description', 'isCollected', 'isRecommended'
+                'uniqueTags', 'ingredients', 'description', 'isCollected', 'isRecommended', 'thirdPartyDeliveryItems'
         )
 
 dish_overview_schema = DishOverviewSchema()
