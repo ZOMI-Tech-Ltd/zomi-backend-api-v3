@@ -99,15 +99,31 @@ class UserActionService:
         if not UserActionService._check_object_exists(dish_id, UserActionService.OBJECT_TYPE_DISH):
             return False, "Object not found", 404
 
-        existing_taste = Taste.query.filter_by(
+        existing_taste = Taste.active_tastes().filter_by(
             userId=user_id,
             dishId=dish_id
         ).first()
 
         if existing_taste:
             return create_response(code=409, message="Already recommended", data=None)
+        
 
-        new_taste = Taste(userId=user_id, dishId=dish_id,comment = UserActionService.TASTE_MESSAGE,
+        deleted_taste = Taste.deleted_tastes().filter_by(
+            userId=user_id,
+            dishId=dish_id
+        ).first()
+
+        if deleted_taste:
+            # Restore the deleted taste
+            deleted_taste.restore()
+            deleted_taste.recommendState = 1
+            deleted_taste.state = deleted_taste.calculate_state()
+
+        else:
+            new_taste = Taste(
+                            userId=user_id, 
+                            dishId=dish_id,
+                            comment = UserActionService.TASTE_MESSAGE,
                           isVerified = False,
                           recommendState = 1,
                           usefulTotal = 0,
@@ -122,11 +138,9 @@ class UserActionService:
                           )
         
         db.session.add(new_taste)
-       
-        db.session.execute(
-            db.update(Dish).where(Dish._id == dish_id)
-             .values(recommendedCount=db.func.coalesce(Dish.recommendedCount, 0) + 1)
-        )
+
+
+        UserActionService._update_dish_recommend_count(dish_id)
 
 
         try:
@@ -142,7 +156,7 @@ class UserActionService:
 
     @staticmethod
     def unrecommend_dish(user_id, dish_id):
-        taste = Taste.query.filter_by(
+        taste = Taste.active_tastes().filter_by(
             userId=user_id,
             dishId=dish_id,
         ).first()
@@ -150,13 +164,8 @@ class UserActionService:
         if not taste:
             return create_response(code=404, message="Not recommended yet", data=None)
 
-        db.session.delete(taste)
-
-        db.session.execute(
-            db.update(Dish)
-            .where(Dish._id == dish_id)
-            .values(recommendedCount=db.func.greatest(db.func.coalesce(Dish.recommendedCount, 0) - 1, 0))
-        )
+        taste.soft_delete()
+        UserActionService._update_dish_recommend_count(dish_id)
             
 
         try:
@@ -174,7 +183,7 @@ class UserActionService:
         if not UserActionService._check_object_exists(dish_id, UserActionService.OBJECT_TYPE_DISH):
             return create_response(code=404, message="Object not found", data=None)
 
-        existing_collection = Collection.query.filter_by(
+        existing_collection = Collection.active_collections().filter_by(
             user=user_id,
             object=dish_id,
             objectType=UserActionService.OBJECT_TYPE_DISH
@@ -183,10 +192,22 @@ class UserActionService:
         if existing_collection:
             return create_response(code=409, message="Already collected", data=None)
 
-        new_collection = Collection(user=user_id, object=dish_id, objectType=UserActionService.OBJECT_TYPE_DISH,
+        deleted_collection = Collection.deleted_collections().filter_by(
+            user=user_id,
+            object=dish_id,
+            objectType=UserActionService.OBJECT_TYPE_DISH
+        ).first()
+
+        if deleted_collection:
+            # Restore the deleted collection
+            deleted_collection.restore()
+
+
+        else:
+            new_collection = Collection(user=user_id, object=dish_id, objectType=UserActionService.OBJECT_TYPE_DISH,
                                     flow_document = {"Source":"Collect dish by user"})
                                     
-        db.session.add(new_collection)
+            db.session.add(new_collection)
 
         try:
             db.session.commit()
@@ -200,7 +221,7 @@ class UserActionService:
 
     @staticmethod
     def uncollect_dish(user_id, dish_id):
-        collection = Collection.query.filter_by(
+        collection = Collection.active_collections().filter_by(
             user=user_id,
             object=dish_id,
             objectType=UserActionService.OBJECT_TYPE_DISH
@@ -209,7 +230,7 @@ class UserActionService:
         if not collection:
             return create_response(code=404, message="Not collected yet", data=None)
 
-        db.session.delete(collection)
+        collection.soft_delete()
 
         try:
             db.session.commit()
@@ -222,14 +243,14 @@ class UserActionService:
 
     @staticmethod
     def like_taste(user_id, taste_id):
-        taste = Taste.query.filter_by(
+        taste = Taste.active_tastes().filter_by(
             _id=taste_id
         ).first()
 
         if not taste:
             return create_response(code=404, message="Taste not found", data=None)
         
-        existing_like = Like.query.filter_by(
+        existing_like = Like.active_likes().filter_by(
             user=user_id,
             object=taste_id,
             objectType=UserActionService.OBJECT_TYPE_TASTE,
@@ -238,24 +259,33 @@ class UserActionService:
         if existing_like:
             return create_response(code=409, message="Already liked", data=None)
         
-        new_like = Like(
+        deleted_like = Like.deleted_likes().filter_by(
             user=user_id,
             object=taste_id,
             objectType=UserActionService.OBJECT_TYPE_TASTE,
-            createdAt=datetime.utcnow(),
-            updatedAt=datetime.utcnow(),
-            flow_published_at=datetime.utcnow(),
-            flow_document = {"Source":"Like taste by user"},
-            state = 1
-        )
+        ).first()
+        
 
-        db.session.add(new_like)
+        if deleted_like:
+            # Restore the deleted like
+            deleted_like.restore()
 
-        db.session.execute(
-            db.update(Taste)
-            .where(Taste._id == taste_id)
-            .values(usefulTotal=db.func.coalesce(Taste.usefulTotal, 0) + 1)
-        )
+        else:
+            new_like = Like(
+                user=user_id,
+                object=taste_id,
+                objectType=UserActionService.OBJECT_TYPE_TASTE,
+                createdAt=datetime.utcnow(),
+                updatedAt=datetime.utcnow(),
+                flow_published_at=datetime.utcnow(),
+                flow_document = {"Source":"Like taste by user"},
+                state = 1
+            )
+
+            db.session.add(new_like)
+
+        UserActionService._update_taste_useful_total(taste_id)
+
 
         try:
             db.session.commit()
@@ -268,7 +298,7 @@ class UserActionService:
         
     @staticmethod
     def unlike_taste(user_id, taste_id):
-        like = Like.query.filter_by(
+        like = Like.active_likes().filter_by(
             user=user_id,
             object=taste_id,
             objectType=UserActionService.OBJECT_TYPE_TASTE
@@ -277,13 +307,9 @@ class UserActionService:
         if not like:
             return create_response(code=404, message="Not liked yet", data=None)
         
-        db.session.delete(like)
+        like.soft_delete()
 
-        db.session.execute(
-            db.update(Taste)
-            .where(Taste._id == taste_id)
-            .values(usefulTotal=db.func.greatest(db.func.coalesce(Taste.usefulTotal, 0) - 1, 0))
-        )
+        UserActionService._update_taste_useful_total(taste_id)
 
         try:
             db.session.commit()
@@ -298,7 +324,7 @@ class UserActionService:
     def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=1):
         try:
             # Find the taste
-            taste = Taste.query.filter_by(
+            taste = Taste.active_tastes().filter_by(
                 dishId=dish_id,
                 userId=user_id
             ).first()
@@ -372,7 +398,7 @@ class UserActionService:
         """
         try:
             # Count recommendations for this dish
-            recommend_count = Taste.query.filter_by(
+            recommend_count = Taste.active_tastes().filter_by(
                 dishId=dish_id,
                 recommendState=TasteRecommendState.YES
             ).count()
@@ -390,9 +416,30 @@ class UserActionService:
 
 
     @staticmethod
+    def _update_taste_useful_count(taste_id):
+        try:
+            # Count active likes for this taste
+            useful_count = Like.active_likes().filter_by(
+                object=taste_id,
+                objectType=UserActionService.OBJECT_TYPE_TASTE
+            ).count()
+            
+            # Update taste
+            db.session.execute(
+                db.update(Taste)
+                .where(Taste._id == taste_id)
+                .values(usefulTotal=useful_count)
+            )
+            
+            db.session.commit()
+        except Exception as e:
+            print(f"Error updating taste useful count: {e}")
+
+
+    @staticmethod
     def get_taste(user_id, taste_id):
         try:
-            taste = Taste.query.filter_by(
+            taste = Taste.active_tastes().filter_by(
                 _id=taste_id,
                 userId=user_id
             ).first()
@@ -426,7 +473,7 @@ class UserActionService:
     def get_user_taste_total(user_id):
         try:
             # Count total tastes for the user
-            total_tastes = Taste.query.filter_by(userId=user_id).count()
+            total_tastes = Taste.active_tastes().filter_by(userId=user_id).count()
             
             return create_response(
                 code=0,
@@ -443,6 +490,14 @@ class UserActionService:
     @staticmethod
     def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=1):
         try:
+            existing_taste = Taste.active_tastes().filter_by(
+                userId=user_id,
+                dishId=dish_id
+            ).first()
+
+            if existing_taste:
+                return create_response(code=409, message="Already recommended", data=None)
+        
             taste = Taste(
                 userId=user_id,
                 dishId=dish_id,
@@ -451,7 +506,7 @@ class UserActionService:
                 mediaIds=media_ids,
                 mood=mood,
                 tags=tags,
-                flow_document = {"Source":"UGC Flow"},
+                flow_document = {"Source":"UGC Flow"}
             )
             # Update fields if provided
             if comment is not None:
@@ -512,7 +567,7 @@ class UserActionService:
 
     @staticmethod
     def delete_taste(user_id, taste_id):
-        taste = Taste.query.filter_by(
+        taste = Taste.active_tastes().filter_by(
             _id=taste_id,
             userId=user_id
         ).first()
@@ -520,7 +575,10 @@ class UserActionService:
         if not taste:
             return create_response(code=404, message="Taste not found")
 
-        db.session.delete(taste)
+        taste.soft_delete()
+        UserActionService._update_dish_recommend_count(taste.dishId)
+
+        
         db.session.commit()
         return create_response(code=0, message="Taste deleted successfully")
 

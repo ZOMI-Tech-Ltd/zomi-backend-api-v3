@@ -16,6 +16,9 @@ class Collection(db.Model):
     
     updatedAt = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
+    #deletedAt
+    deletedAt = db.Column(db.DateTime, nullable=True)
+
 
     user = db.Column('user' ,db.String(255), db.ForeignKey('users._id'), nullable=False)
 
@@ -28,6 +31,34 @@ class Collection(db.Model):
 
     #unique constraint
     __table_args__ = (db.UniqueConstraint('user', 'object', name='_user_object_collection_uc'),)
+
+
+
+    #soft delete
+    def soft_delete(self):
+        self.deletedAt = datetime.utcnow()
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'd'
+
+    def restore(self):
+        self.deletedAt = None
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'u'
+
+
+
+    @property
+    def is_deleted(self):
+        return self.deletedAt is not None
+
+    @classmethod
+    def active_collections(cls):
+        return cls.query.filter(cls.deletedAt.is_(None))
+
+    @classmethod
+    def deleted_collections(cls):
+        return cls.query.filter(cls.deletedAt.isnot(None))
+
 
 
     def __repr__(self):

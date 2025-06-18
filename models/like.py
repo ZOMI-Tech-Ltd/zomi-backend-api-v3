@@ -32,10 +32,36 @@ class Like(db.Model):
     #state
     state = db.Column(db.Integer, nullable=False, default=0)
 
+    #soft delete
+    deletedAt = db.Column(db.DateTime, nullable=True)
+
     # Unique constraint to prevent duplicate likes by same user on same object type
     __table_args__ = (
         db.UniqueConstraint('user', 'object', 'objectType', name='_user_object_type_like_uc'),
     )
+
+    def soft_delete(self):
+        self.deletedAt = datetime.utcnow()
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'd'
+
+    def restore(self):
+        self.deletedAt = None
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'u'
+
+    @property
+    def is_deleted(self):
+        return self.deletedAt is not None
+
+    @classmethod
+    def active_likes(cls):
+        return cls.query.filter(cls.deletedAt.is_(None))
+
+    @classmethod
+    def deleted_likes(cls):
+        return cls.query.filter(cls.deletedAt.isnot(None))
+    
 
 
     def __repr__(self):

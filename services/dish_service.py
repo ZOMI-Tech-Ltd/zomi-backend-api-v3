@@ -88,12 +88,12 @@ class DishService:
             is_recommended = False
 
             if current_user_id:
-                is_collected = Collection.query.filter_by(
+                is_collected = Collection.active_collections().filter_by(
                     user=current_user_id,
                     object=dish_id
                 ).first() is not None
                 
-                is_recommended = Taste.query.filter_by(
+                is_recommended = Taste.active_tastes().filter_by(
                     userId=current_user_id,
                     dishId=dish_id
                 ).first() is not None
@@ -103,28 +103,7 @@ class DishService:
             dish._is_recommended = is_recommended
 
             
-            # # get delivery links
-            # dish._third_party_delivery_items = []
-            # try:
-            #     # Get all active delivery platforms
-            #     platforms = ThirdPartyDelivery.get_all_active_platforms()
-            #     merchant_external_ids = merchant.get_all_external_ids()
-                
-            #     for platform in platforms:
-            #         external_id = merchant_external_ids.get(platform.name)
-            #         if external_id:
-            #             delivery_url = platform.construct_url(external_id)
-            #             if delivery_url:
-            #                 dish._third_party_delivery_items.append(
-            #                 {
-            #                     "id": platform._id,
-            #                     "name": platform.name,
-            #                     "redirect_url": delivery_url,
-            #                     "icon": platform.icon
-            #                 })
-            # except Exception as e:
-            #     print(f"Error getting delivery links: {e}")
-            #     dish._third_party_delivery_items = []
+    
             
 
             result = dish_overview_schema.dump(dish)

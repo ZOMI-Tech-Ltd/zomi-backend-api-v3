@@ -51,7 +51,7 @@ class Taste(db.Model):
     state = db.Column(db.Integer, nullable=False)
     createdAt = db.Column(db.DateTime, default = datetime.utcnow)
     updatedAt = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
-    
+    deletedAt = db.Column(db.DateTime, nullable=True)
     flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
    
     __v = db.Column('__v', db.Integer, nullable=False, default=0) 
@@ -98,6 +98,28 @@ class Taste(db.Model):
         
         return state
     
+
+    def soft_delete(self):
+        self.deletedAt = datetime.utcnow()
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'd'
+
+    def restore(self):
+        self.deletedAt = None
+        self.updatedAt = datetime.utcnow()
+        self._meta_op = 'u'
+
+    @property
+    def is_deleted(self):
+        return self.deletedAt is not None
+
+    @classmethod
+    def active_tastes(cls):
+        return cls.query.filter(cls.deletedAt.is_(None))
+
+    @classmethod
+    def deleted_tastes(cls):
+        return cls.query.filter(cls.deletedAt.isnot(None))
 
 
 
