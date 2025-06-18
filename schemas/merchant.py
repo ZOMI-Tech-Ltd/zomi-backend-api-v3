@@ -47,7 +47,7 @@ class MerchantSchema(ma.Schema):
                         {
                             "id": platform._id,
                             "name": platform.name,
-                            "redirect_url": delivery_url,
+                            "redirectUrl": delivery_url,
                             "icon": platform.icon
                         })
         
