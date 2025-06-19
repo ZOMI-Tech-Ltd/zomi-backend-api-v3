@@ -112,7 +112,7 @@ class UserActionService:
             userId=user_id,
             dishId=dish_id
         ).first()
-
+        
         if deleted_taste:
             # Restore the deleted taste
             deleted_taste.restore()
@@ -137,7 +137,7 @@ class UserActionService:
                           _meta_op = 'c'
                           )
         
-        db.session.add(new_taste)
+            db.session.add(new_taste)
 
 
         UserActionService._update_dish_recommend_count(dish_id)
