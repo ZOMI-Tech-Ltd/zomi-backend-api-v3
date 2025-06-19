@@ -15,13 +15,14 @@ def get_current_user_id():
     current_user_id = None
     if request.headers.get('Authorization') and request.headers.get('Authorization').startswith('Bearer '):
         current_user_id = get_jwt_identity()
-
+    else:
+        current_user_id = None
     return current_user_id
 
 
 
 @dish_bp.route('/<string:dish_id>/overview', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_dish_overview(dish_id):
     lat = request.args.get('lat', type=float)
     lon = request.args.get('lon', type=float)

@@ -24,13 +24,10 @@ def get_current_user_id():
             current_user_id = get_jwt_identity()
             if current_user_id:
                 return str(current_user_id)
+            else:
+                return None
     except Exception as e:
         print(f"JWT token validation failed: {e}")
-    
-    # Fallback to query parameter (for development/testing)
-    user_id_param = request.args.get('user_id')
-    if user_id_param:
-        return str(user_id_param)
     
     return None
 
