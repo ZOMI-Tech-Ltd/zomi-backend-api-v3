@@ -416,7 +416,7 @@ class UserActionService:
 
 
     @staticmethod
-    def _update_taste_useful_count(taste_id):
+    def _update_taste_useful_total(taste_id):
         try:
             # Count active likes for this taste
             useful_count = Like.active_likes().filter_by(

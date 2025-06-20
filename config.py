@@ -23,8 +23,11 @@ class Config:
     # REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
     # REDIS_PORT = os.getenv('REDIS_PORT', 6379)
     # REDIS_DB = os.getenv('REDIS_DB', 0)
-
+    MONGODB_URL = os.getenv('MONGODB_URL', 'mongodb://localhost:27017/')
+    MONGODB_DB = os.getenv('MONGODB_DB', 'zomi_backend')
     
+    ENABLE_MONGODB_WRITE = os.getenv('ENABLE_MONGODB_WRITE', 'true').lower() == 'true'
+    MONGODB_FIRST = os.getenv('MONGODB_FIRST', 'true').lower() == 'true'  # Write to MongoDB first
 
 
 
