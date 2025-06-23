@@ -38,12 +38,12 @@ class Taste(db.Model):
 
     _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()) )
     
-    dishId = db.Column(db.String(50), nullable=False, default = "Test")
-    comment = db.Column(db.String(50), nullable=False, default = "Test")
+    dishId = db.Column(db.String(50), nullable=False, default = "")
+    comment = db.Column(db.String(50), nullable=True, default = None)
     isVerified= db.Column(db.Boolean, nullable = False, default  = False)
     recommendState = db.Column(db.Integer, nullable=False, default = 1)
     usefulTotal = db.Column(db.Integer, nullable=False, default = 0)
-    flow_document = db.Column(db.JSON, default = {"test":"test"})
+    flow_document = db.Column(db.JSON, default = {"from taste model":"from taste model"})
     tags = db.Column(db.JSON)
     mediaIds = db.Column(db.JSON)
     userId = db.Column(db.String(50), db.ForeignKey('users._id'), nullable=False)
