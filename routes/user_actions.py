@@ -207,7 +207,7 @@ def get_user_merchant_items(merchant_id):
     )
     
     # Response already formatted by service
-    return create_response(code=200, data=result['data'], message=result['msg']), 200
+    return create_response(code=0, data=result['data'], message=result['msg']), 200
 
 
 # recommend dish
@@ -262,7 +262,7 @@ def collect_dish(dish_id):
     if result['code']==0:
         status_code = 0
     else:   
-        status_code = 200
+        status_code = 0
     return create_response(code=status_code, data=result['data'], message=result['msg']), 200
 
 
@@ -277,7 +277,7 @@ def uncollect_dish(dish_id):
         dish_id=dish_id
     )
     
-    return create_response(code=200, data=result['data'], message=result['msg']), 200
+    return create_response(code=0, data=result['data'], message=result['msg']), 200
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['POST'])
@@ -289,7 +289,7 @@ def like_taste(taste_id):
         taste_id=taste_id
     )
     
-    return create_response(code=200, data=result['data'], message=result['msg']), 200
+    return create_response(code=0, data=result['data'], message=result['msg']), 200
 
 
 @user_actions_bp.route('/taste/like/<string:taste_id>', methods=['DELETE'])
@@ -301,4 +301,4 @@ def unlike_taste(taste_id):
         taste_id=taste_id
     )
 
-    return create_response(code=200, data=result['data'], message=result['msg']), 200
+    return create_response(code=0, data=result['data'], message=result['msg']), 200

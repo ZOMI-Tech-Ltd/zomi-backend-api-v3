@@ -228,7 +228,7 @@ class UserActionService:
         ).first()
 
         if not collection:
-            return create_response(code=404, message="Not collected yet", data=None)
+            return create_response(code=200, message="Not collected yet", data=None)
 
         collection.soft_delete()
 
@@ -238,7 +238,7 @@ class UserActionService:
         except Exception as e:
             db.session.rollback()
             print(f"Error uncollecting object: {e}")
-            return create_response(code=500, message="Failed to uncollect", data=None)
+            return create_response(code=200, message="Failed to uncollect", data=None)
         
 
     @staticmethod
@@ -445,7 +445,7 @@ class UserActionService:
             ).first()
             
             if not taste:
-                return create_response(code=404, message="Taste not found")
+                return create_response(code=0, message="Taste not found")
             
             taste_data = {
                 "id": taste._id,
@@ -466,7 +466,7 @@ class UserActionService:
         
         except Exception as e:
             print(f"Error getting taste: {e}")
-            return create_response(code=500, message="Failed to get taste")
+            return create_response(code=0, message="Failed to get taste")
 
 
     @staticmethod
@@ -485,7 +485,7 @@ class UserActionService:
         
         except Exception as e:
             print(f"Error getting user taste total: {e}")
-            return create_response(code=500, message="Failed to get user taste total")
+            return create_response(code=0, message="Failed to get user taste total")
 
     @staticmethod
     def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=1):
@@ -514,7 +514,7 @@ class UserActionService:
             
             if recommend_state is not None:
                 if recommend_state not in [0, 1, 2]:
-                    return create_response(code=400, message="Invalid recommend state")
+                    return create_response(code=0, message="Invalid recommend state")
                 taste.recommendState = recommend_state
             
             if media_ids is not None:
@@ -522,12 +522,12 @@ class UserActionService:
                 #check if media ids exist in media table
                 media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
                 if len(media_ids) != len(media_ids):
-                    return create_response(code=400, message="Invalid media ids")   
+                    return create_response(code=0, message="Invalid media ids")   
                 taste.mediaIds = media_ids
             
             if mood is not None:
                 if mood not in [0, 1, 2, 3]:
-                    return create_response(code=400, message="Invalid mood value")
+                    return create_response(code=0, message="Invalid mood value")
                 taste.mood = mood
             
             if tags is not None:
@@ -573,7 +573,7 @@ class UserActionService:
         ).first()
 
         if not taste:
-            return create_response(code=404, message="Taste not found")
+            return create_response(code=0, message="Taste not found")
 
         taste.soft_delete()
         UserActionService._update_dish_recommend_count(taste.dishId)
