@@ -123,7 +123,7 @@ class UserActionService:
             new_taste = Taste(
                             userId=user_id, 
                             dishId=dish_id,
-                            comment = UserActionService.TASTE_MESSAGE,
+                            comment = None,
                           isVerified = False,
                           recommendState = 1,
                           usefulTotal = 0,
