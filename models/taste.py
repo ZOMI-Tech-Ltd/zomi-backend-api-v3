@@ -79,21 +79,21 @@ class Taste(db.Model):
             state = TasteState.NOT_RECOMMEND
         
         # General evaluation
-        if self.mood > Mood.DEFAULT or len(self.tags) > 0 or self.comment or len(self.mediaIds) > 0:
+        if self.mood > Mood.DEFAULT or len(self.tags or []) > 0 or self.comment or len(self.mediaIds or []) > 0:
             state = TasteState.GENERAL
         
         if self.comment:
             state = TasteState.COMMENT
         
-        if len(self.mediaIds) > 0:
+        if len(self.mediaIds or []) > 0:
             state = TasteState.MEDIA
         
-        if self.comment and len(self.mediaIds) > 0:
+        if self.comment and len(self.mediaIds or []) > 0:
             state = TasteState.COMMENT_AND_MEDIA
         
         # Complete evaluation
         if (self.mood > Mood.DEFAULT and self.comment and 
-            len(self.mediaIds) > 0 and len(self.tags) > 0):
+            len(self.mediaIds or []) > 0 and len(self.tags or []) > 0):
             state = TasteState.COMPLETE
         
         return state
