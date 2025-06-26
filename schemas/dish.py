@@ -32,8 +32,8 @@ class DishOverviewSchema(ma.Schema):
 
 
     #tag fields
-    flavorTags = ma.List(ma.Str, required=True,allow_none=True, dump_default=None)
-    uniqueTags = ma.List(ma.Str, required=True,allow_none=True, dump_default=None)
+    flavorTags = ma.Method('get_ai_flavor_tags', allow_none=True)
+    uniqueTags = ma.Method('get_ai_unique_tags', allow_none=True)
 
     #ingredients
     ingredients = ma.Method('get_ingredients', required=False, dump_default=None)
@@ -108,6 +108,21 @@ class DishOverviewSchema(ma.Schema):
         return getattr(obj, '_ingredients_data', [])
     
 
+    def get_ai_flavor_tags(self, obj):
+        flavor_tags = getattr(obj, '_ai_flavor_tags', [])
+        if not flavor_tags:
+            return None
+        return [tag['text'] for tag in flavor_tags]
+    
+    def get_ai_unique_tags(self, obj):
+        unique_tags = getattr(obj, '_ai_unique_tags', [])
+        if not unique_tags:
+            return []
+        
+        return [tag['text'] for tag in unique_tags]
+
+
+
     class Meta:
         fields = (
             '_id', 'title', 'images', 
@@ -116,4 +131,26 @@ class DishOverviewSchema(ma.Schema):
                 'uniqueTags', 'ingredients', 'description', 'isCollected', 'isRecommended'
         )
 
+
+
+class DishFlavorProfileSchema(ma.Schema):
+    
+    dish_id = ma.String(required=True)
+    generated_tags = ma.List(ma.Dict(), required=True)
+    cuisine = ma.String(allow_none=True)
+    main_ingredients = ma.Raw(allow_none=True)
+    cooking_methods = ma.List(ma.String(), allow_none=True)
+    allergens = ma.Raw(allow_none=True)
+    confidence = ma.Raw(required=True)
+    needs_review = ma.Boolean(allow_none=True)
+    raw_scores = ma.Dict(allow_none=True)
+    
+    class Meta:
+        fields = (
+            'dish_id', 'generated_tags', 'cuisine', 'main_ingredients',
+            'cooking_methods', 'allergens', 'confidence', 'needs_review', 'raw_scores'
+        )
+
+
 dish_overview_schema = DishOverviewSchema()
+dish_flavor_profile_schema = DishFlavorProfileSchema()

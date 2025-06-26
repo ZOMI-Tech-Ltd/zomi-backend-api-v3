@@ -2,7 +2,7 @@
 
 
 from models.mongodb_models.base import MongoBaseModel
-
+import uuid
 
 class MongoTaste(MongoBaseModel):
     """MongoDB model for tastes (recommendations)"""
@@ -79,6 +79,8 @@ class MongoTaste(MongoBaseModel):
         
         if recommend_state == 1:
             state = 1  # RECOMMEND
+
+            
         elif recommend_state == 2:
             state = 2  # NOT_RECOMMEND
         

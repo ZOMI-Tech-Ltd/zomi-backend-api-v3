@@ -38,12 +38,12 @@ class Taste(db.Model):
 
     _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()) )
     
-    dishId = db.Column(db.String(50), nullable=False, default = "Test")
-    comment = db.Column(db.String(50), nullable=False, default = "Test")
+    dishId = db.Column(db.String(50), nullable=False, default = "")
+    comment = db.Column(db.String(50), nullable=True, default = None)
     isVerified= db.Column(db.Boolean, nullable = False, default  = False)
     recommendState = db.Column(db.Integer, nullable=False, default = 1)
     usefulTotal = db.Column(db.Integer, nullable=False, default = 0)
-    flow_document = db.Column(db.JSON, default = {"test":"test"})
+    flow_document = db.Column(db.JSON, default = {"from taste model":"from taste model"})
     tags = db.Column(db.JSON)
     mediaIds = db.Column(db.JSON)
     userId = db.Column(db.String(50), db.ForeignKey('users._id'), nullable=False)
@@ -79,21 +79,21 @@ class Taste(db.Model):
             state = TasteState.NOT_RECOMMEND
         
         # General evaluation
-        if self.mood > Mood.DEFAULT or len(self.tags) > 0 or self.comment or len(self.mediaIds) > 0:
+        if self.mood > Mood.DEFAULT or len(self.tags or []) > 0 or self.comment or len(self.mediaIds or []) > 0:
             state = TasteState.GENERAL
         
         if self.comment:
             state = TasteState.COMMENT
         
-        if len(self.mediaIds) > 0:
+        if len(self.mediaIds or []) > 0:
             state = TasteState.MEDIA
         
-        if self.comment and len(self.mediaIds) > 0:
+        if self.comment and len(self.mediaIds or []) > 0:
             state = TasteState.COMMENT_AND_MEDIA
         
         # Complete evaluation
         if (self.mood > Mood.DEFAULT and self.comment and 
-            len(self.mediaIds) > 0 and len(self.tags) > 0):
+            len(self.mediaIds or []) > 0 and len(self.tags or []) > 0):
             state = TasteState.COMPLETE
         
         return state

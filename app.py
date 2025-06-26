@@ -13,7 +13,7 @@ from models.media import Media
 from models.taste import Taste
 from models.collection import Collection
 from models.user import User
-
+from models.dish_profile import DishProfile
 from utils.response_utils import create_response
 
 from models.thirdparty import ThirdPartyDelivery
