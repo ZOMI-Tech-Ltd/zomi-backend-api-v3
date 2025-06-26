@@ -2,7 +2,7 @@
 
 from extensions import db
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
-
+from datetime import datetime
 class Dish(db.Model):
 
     __tablename__ = 'dishes'
@@ -39,7 +39,35 @@ class Dish(db.Model):
     description = db.Column(db.String(200), nullable=True)
 
 
+    @staticmethod
+    def soft_delete(self):
+        self.deletedAt = datetime.now()
+        self.updatedAt = datetime.now()
+        self._meta_op = 'd'
 
+    @staticmethod
+    def restore(self):
+        self.deletedAt = None
+        self.updatedAt = datetime.now()
+        self._meta_op = 'u'
+
+
+    @staticmethod
+    def is_deleted(self):
+        return self.deletedAt is not None
+    
+
+    @classmethod
+    def active_dishes(cls):
+        return cls.query.filter(cls.deletedAt.is_(None))
+    
+
+    @classmethod
+    def deleted_dishes(cls):
+        return cls.query.filter(cls.deletedAt.isnot(None))
+    
+
+    
 
     
 
