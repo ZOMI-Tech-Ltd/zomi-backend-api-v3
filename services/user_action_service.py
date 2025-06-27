@@ -518,7 +518,6 @@ class UserActionService:
                 taste.recommendState = recommend_state
             
             if media_ids is not None:
-                print(media_ids)
                 #check if media ids exist in media table
                 media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
                 if len(media_ids) != len(media_ids):
@@ -541,7 +540,7 @@ class UserActionService:
             
             # Update timestamp
             taste.updatedAt = datetime.utcnow()
-            print(taste)
+            
             # Commit changes
             db.session.add(taste)
             db.session.commit()
