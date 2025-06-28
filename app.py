@@ -34,7 +34,7 @@ def create_app():
     
     @app.errorhandler(500)
     def internal_server_error(error):
-        return create_response(code=500, message='Internal server error'), 500
+        return create_response(code=500, message='Internhal server error'), 500
 
 
     with app.app_context(): 
