@@ -274,8 +274,13 @@ class MediaService:
                     'type': media.type,
                     'width': media.width,
                     'height': media.height,
-                    'blur_hash': media.blur_hash,
-                    'file_size': media.file_size
+                    'blur_hash': media.blurHash,
+                    'file_size': media.fileSize,
+                    'blurHashAt': media.blurHashAt,
+                    'duration': media.duration,
+                    'flow_document': media.flow_document,
+                    'media_type': media.media_type,
+                    'source': media.source
                 },
                 message="Media imported successfully"
             )
@@ -287,9 +292,7 @@ class MediaService:
     
     @staticmethod
     def batch_import_from_urls(urls: List[str], user_id: str) -> dict:
-        """
-        Batch import media from URLs using thread pool
-        """
+
         results = {
             'successful': [],
             'failed': []
@@ -326,9 +329,7 @@ class MediaService:
     
     @staticmethod
     def get_media_by_id(media_id: str) -> dict:
-        """
-        Get media by ID
-        """
+
         try:
             media = Media.query.filter_by(_id=media_id).first()
             if not media:
@@ -354,97 +355,6 @@ class MediaService:
             logger.error(f"Error getting media: {str(e)}")
             return create_response(code=500, message=f"Failed to get media: {str(e)}")
     
-    @staticmethod
-    def process_pending_media() -> dict:
-        """
-        Process all media with source_url but no url (matching the script functionality)
-        """
-        try:
-            # Get pending media
-            pending_media = Media.query.filter(
-                and_(
-                    Media.url.is_(None),
-                    Media.source_url.isnot(None),
-                    Media.source_url != ''
-                )
-            ).all()
-            
-            total = len(pending_media)
-            if total == 0:
-                return create_response(
-                    code=0,
-                    data={'processed': 0, 'successful': 0, 'failed': 0},
-                    message="No pending media to process"
-                )
-            
-            logger.info(f"Found {total} pending media to process")
-            
-            successful = 0
-            failed = 0
-            batch = []
-            
-            def process_media_item(media):
-                try:
-                    # Download and process
-                    response = requests.get(media.source_url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-                    response.raise_for_status()
-                    data = response.content
-                    
-                    # Process image
-                    processed = MediaService.process_image_data(data, media.source_url)
-                    
-                    # Upload to S3 if not already CloudFront URL
-                    if media.source_url.startswith(CLOUDFRONT_PREFIX):
-                        url = media.source_url
-                    else:
-                        url = MediaService.upload_to_s3(processed['data'])
-                    
-                    return {
-                        'media': media,
-                        'url': url,
-                        'width': processed['width'],
-                        'height': processed['height'],
-                        'blur_hash': processed['blur_hash'],
-                        'file_size': processed['file_size']
-                    }
-                except Exception as e:
-                    logger.error(f"Failed to process media {media._id}: {str(e)}")
-                    return None
-            
-            # Process in batches using thread pool
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = [executor.submit(process_media_item, media) for media in pending_media]
-                
-                for future in as_completed(futures):
-                    result = future.result()
-                    if result:
-                        batch.append(result)
-                        successful += 1
-                    else:
-                        failed += 1
-                    
-                    # Flush batch when it reaches BATCH_SIZE
-                    if len(batch) >= BATCH_SIZE:
-                        MediaService._flush_media_batch(batch)
-                        batch.clear()
-                
-                # Flush remaining items
-                if batch:
-                    MediaService._flush_media_batch(batch)
-            
-            return create_response(
-                code=0,
-                data={
-                    'processed': total,
-                    'successful': successful,
-                    'failed': failed
-                },
-                message=f"Processing completed: {successful} successful, {failed} failed"
-            )
-            
-        except Exception as e:
-            logger.error(f"Error processing pending media: {str(e)}")
-            return create_response(code=500, message=f"Failed to process pending media: {str(e)}")
     
     @staticmethod
     def _flush_media_batch(items: List[dict]):
