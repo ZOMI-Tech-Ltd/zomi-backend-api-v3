@@ -2,12 +2,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from marshmallow import ValidationError
-from services.media_service import MediaService
+from services.media import MediaService
 from schemas.media import (
     MediaUploadSchema,
-    MediaBatchUploadSchema,
     MediaImportUrlSchema,
-    MediaBatchImportSchema
 )
 from utils.response_utils import create_response
 from extensions import db
@@ -20,9 +18,7 @@ logger = logging.getLogger(__name__)
 media_bp = Blueprint('media', __name__, url_prefix='/v3/media')
 
 media_upload_schema = MediaUploadSchema()
-media_batch_upload_schema = MediaBatchUploadSchema()
 media_import_url_schema = MediaImportUrlSchema()
-media_batch_import_schema = MediaBatchImportSchema()
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'avi', 'mkv',
                        'webm', 'flv', 'wmv', 'm4v', 'm4a', 'aac', 'ogg', 'wav', 'mp3'}
