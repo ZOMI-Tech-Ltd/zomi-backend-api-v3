@@ -33,11 +33,13 @@ class Media(db.Model):
 
     createdAt = db.Column("createdAt", default=datetime.utcnow)
     updatedAt = db.Column("updatedAt", default=datetime.utcnow, onupdate=datetime.utcnow)
-    deletedAt = db.Column("deletedAt", nullable=True)
+    # deletedAt = db.Column("deletedAt", nullable=True)
     blurHashAt = db.Column("blurHashAt", nullable=True)
     duration = db.Column("duration", nullable=True)
     flow_document = db.Column("flow_document", nullable=True)
 
+
+    pg_id = db.Column(db.String(100), nullable=True)
 
     
     

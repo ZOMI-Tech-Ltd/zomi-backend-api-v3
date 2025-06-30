@@ -35,6 +35,8 @@ class Like(db.Model):
     #soft delete
     deletedAt = db.Column(db.DateTime, nullable=True)
 
+
+
     # Unique constraint to prevent duplicate likes by same user on same object type
     __table_args__ = (
         db.UniqueConstraint('user', 'object', 'objectType', name='_user_object_type_like_uc'),

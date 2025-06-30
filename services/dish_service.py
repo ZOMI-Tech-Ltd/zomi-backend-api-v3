@@ -59,12 +59,12 @@ class DishService:
 
 
 
-
-            dish_profile = DishProfile.query.filter_by(dish_id=dish_id).first()
+            dish_profile = DishProfile.query.filter_by(dish_id=str(dish.pg_id)).first()
 
             if dish_profile:
                 ai_tags = FlavorTagService.generate_flavor_tags(dish_profile)
                 formatted_tags = FlavorTagService.format_tags_for_display(ai_tags)
+
 
 
                 dish._ai_flavor_tags  = [tag for tag in formatted_tags

@@ -37,7 +37,7 @@ class Dish(db.Model):
 
     #description
     description = db.Column(db.String(200), nullable=True)
-
+    pg_id = db.Column(db.String(100), nullable=True)
 
     @staticmethod
     def soft_delete(self):
