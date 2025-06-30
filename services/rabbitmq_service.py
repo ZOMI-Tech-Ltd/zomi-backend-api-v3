@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 class RabbitMQService:
     
 
-
     def __init__(self):
         self.connection_params = pika.ConnectionParameters(
             host=os.getenv('RABBITMQ_HOST', 'localhost'),
@@ -169,7 +168,7 @@ class RabbitMQService:
 #     return _rabbitmq_service
 
 
-# #
+# #helper funcs
 # def send_media_create_event(media_id: str, media_type: str, url: str, 
 #                            source: str = "INTERNET", **kwargs) -> bool:
 #     """

@@ -16,11 +16,14 @@ from models.media import Media
 from utils.response_utils import create_response
 from sqlalchemy import and_
 import warnings
+from services.rabbitmq_service import RabbitMQService
+from mq.enums import *
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
 #default configs
-MAX_FILE_SIZE = 15 * 1024 * 1024  # 5 MB
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 MAX_WORKERS = 8
 BATCH_SIZE = 128
 CLOUDFRONT_PREFIX = os.getenv('CLOUDFRONT_URL', '')
@@ -39,21 +42,65 @@ s3_client = boto3.client(
 class MediaService:
     
     @staticmethod
+    def _get_rabbitmq_service():
+        return RabbitMQService()
+
+
+    @staticmethod
+    def _send_media_create_event(media: Media):
+        try:
+            rabbitmq = MediaService._get_rabbitmq_service()
+
+            media_type = MediaType.VIDEO if media.type.upper() == 'VIDEO' else MediaType.IMAGE
+
+
+            source_map = {
+                'INTERNET': MediaSource.INTERNET,
+                'USER_AVARTAR' : MediaSource.USER_AVATAR,
+                'VOLCENGINE' : MediaSource.VOLCENGINE
+    
+            }
+
+            media_source = source_map.get(media.source, MediaSource.INTERNET)
+
+
+            #send message
+            success = rabbitmq.send_media_create(
+                media_id= media._id,
+                media_type = media_type,
+                url = media.url,
+                source= media_source,
+                width = media.width,
+                height = media.height
+            )
+            return success
+        except Exception as e:
+            logger.error(f"error sending media create event: {str(e)}")
+            return False
+
+    @staticmethod
     def generate_blurhash_from_image(image: Image.Image) -> str:
         try:
+            # Ensure we have a PIL Image object
+            if not isinstance(image, Image.Image):
+                logger.error(f"Expected PIL Image, got {type(image)}")
+                return None
+            
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
-            #resize
+            # Resize for blurhash
             max_size = (128, 128)
             if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
-                image.thumbnail(max_size)
+                image.thumbnail(max_size, Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
             
-            #blurhash
-            image_np = np.array(image)
+            # Convert to numpy array for blurhash
+            image_array = np.array(image)
+            
+            # Generate blurhash
             x_components = 4
             y_components = 3
-            blurhash = encode(image_np, x_components, y_components)
+            blurhash = encode(image_array, x_components, y_components)
             
             return blurhash
         except Exception as e:
@@ -62,17 +109,20 @@ class MediaService:
     
     @staticmethod
     def generate_blurhash_from_url(image_url: str, max_retries: int = 3) -> tuple:
-
         retries = 0
         while retries < max_retries:
             try:
                 response = requests.get(image_url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+
                 if response.status_code == 200:
                     image = Image.open(BytesIO(response.content)).convert("RGB")
                     blurhash = MediaService.generate_blurhash_from_image(image)
                     return blurhash, image
+                
+
                 else:
                     logger.warning(f"HTTP error: {response.status_code} for URL {image_url}")
+
             except (requests.RequestException, UnidentifiedImageError) as e:
                 logger.error(f"Error fetching or processing image from URL {image_url}: {e}")
             
@@ -114,7 +164,7 @@ class MediaService:
     def upload_to_s3(file_data: bytes, content_type: str = 'image/jpeg') -> str:
         try:
             #unique key
-            key = f"menu-media/{datetime.now().strftime('%Y%m%d')}/{uuid.uuid4().hex}.jpeg"
+            key = f"menu-media/{datetime.now().strftime('%Y%m%d')}/{ObjectId()}.jpeg"
             
             #upload
             s3_client.upload_fileobj(
@@ -131,20 +181,48 @@ class MediaService:
             raise
     
     @staticmethod
-    def process_image_data(data: bytes, source_url: Optional[str] = None) -> dict:
+    def process_image_data(data: bytes) -> dict:
         try:
-            #compress
-            if len(data) > MAX_FILE_SIZE:
-                warnings.warn(f"Image too large ({len(data)} bytes), compressing...", stacklevel=2)
-                data = MediaService.compress_image(data)
+            # Validate image data
+            if not data:
+                raise ValueError("Empty image data")
             
-            #dimensions
-            img = Image.open(BytesIO(data))
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+            # Create BytesIO object and ensure position is at start
+            img_buffer = BytesIO(data)
+            img_buffer.seek(0)
+            
+            # Try to open image
+            try:
+                img = Image.open(img_buffer)
+                # Verify image is valid by loading it
+                img.verify()
+                
+                # Need to reopen after verify
+                img_buffer.seek(0)
+                img = Image.open(img_buffer)
+            except (UnidentifiedImageError, IOError) as e:
+                logger.error(f"Invalid image format: {str(e)}")
+                raise ValueError(f"Invalid image format: {str(e)}")
+            
+            # Get original format
+            original_format = img.format or 'JPEG'
+            
+            # Get dimensions
             width, height = img.size
             
-            #blurhash
+            # Convert to RGB if necessary (for blurhash and JPEG save)
+            if img.mode not in ('RGB', 'L'):
+                img = img.convert('RGB')
+            
+            # Check if compression is needed
+            if len(data) > MAX_FILE_SIZE:
+                warnings.warn(f"Image too large ({len(data)} bytes), compressing...", stacklevel=2)
+                # Compress image
+                output_buffer = BytesIO()
+                img.save(output_buffer, format='JPEG', quality=85, optimize=True)
+                data = output_buffer.getvalue()
+            
+            # Generate blurhash
             blurhash = MediaService.generate_blurhash_from_image(img)
             
             return {
@@ -152,14 +230,18 @@ class MediaService:
                 'width': width,
                 'height': height,
                 'blur_hash': blurhash,
-                'file_size': len(data)
+                'file_size': len(data),
+                'format': original_format
             }
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}")
             raise
-    
+
+
+
+
     @staticmethod
-    def upload_media(file: FileStorage, user_id: str, media_type: str = 'image') -> dict:
+    def upload_media(file: FileStorage, user_id: str, media_type: str = 'image', source = str) -> dict:
         try:
             #read file
             file_data = file.read()
@@ -173,31 +255,37 @@ class MediaService:
             
             #media record
             media = Media(
-                _id=str(uuid.uuid4()),
+                _id=str(ObjectId()),
                 url=url,
-                source_url=None,
-                type=media_type,
+                source = source,
                 width=processed['width'],
                 height=processed['height'],
                 blur_hash=processed['blur_hash'],
                 file_size=processed['file_size'],
-                uploaded_by=user_id,
-                original_filename=filename
+                userId=user_id,
+                media_type = media_type.upper(),
+                blurHashAt = datetime.utcnow()
+
             )
             
             db.session.add(media)
-            db.session.commit()
+            db.session.flush()
             
+            MediaService._send_media_create_event(media)
+
+            db.session.commit()
+
+
             return create_response(
                 code=0,
                 data={
                     '_id': media._id,
+                    'pg_id':media.pg_id,
                     'url': media.url,
-                    'type': media.type,
+                    'type': media.media_type,
                     'width': media.width,
                     'height': media.height,
-                    'blur_hash': media.blur_hash,
-                    'file_size': media.file_size
+                    'blur_hash': media.blurHash
                 },
                 message="Media uploaded successfully"
             )
@@ -207,32 +295,32 @@ class MediaService:
             logger.error(f"Error uploading media: {str(e)}")
             return create_response(code=500, message=f"Failed to upload media: {str(e)}")
     
-    @staticmethod
-    def batch_upload_media(files: List[FileStorage], user_id: str) -> dict:
+    # @staticmethod
+    # def batch_upload_media(files: List[FileStorage], user_id: str) -> dict:
 
-        results = {
-            'successful': [],
-            'failed': []
-        }
+    #     results = {
+    #         'successful': [],
+    #         'failed': []
+    #     }
         
-        for file in files:
-            result = MediaService.upload_media(file, user_id)
-            if result['code'] == 0:
-                results['successful'].append(result['data'])
-            else:
-                results['failed'].append({
-                    'filename': file.filename,
-                    'error': result['msg']
-                })
+    #     for file in files:
+    #         result = MediaService.upload_media(file, user_id)
+    #         if result['code'] == 0:
+    #             results['successful'].append(result['data'])
+    #         else:
+    #             results['failed'].append({
+    #                 'filename': file.filename,
+    #                 'error': result['msg']
+    #             })
         
-        return create_response(
-            code=0,
-            data=results,
-            message=f"Processed {len(files)} files: {len(results['successful'])} successful, {len(results['failed'])} failed"
-        )
+    #     return create_response(
+    #         code=0,
+    #         data=results,
+    #         message=f"Processed {len(files)} files: {len(results['successful'])} successful, {len(results['failed'])} failed"
+    #     )
     
     @staticmethod
-    def import_from_url(source_url: str, user_id: str) -> dict:
+    def import_from_url(source_url: str, user_id: str, source:str = "INTERNET") -> dict:
         try:
 
             #download
@@ -241,7 +329,7 @@ class MediaService:
             data = response.content
             
             #process
-            processed = MediaService.process_image_data(data, source_url)
+            processed = MediaService.process_image_data(data)
             
             #cloudfront url
             if source_url.startswith(CLOUDFRONT_PREFIX):
@@ -251,34 +339,32 @@ class MediaService:
             
 
             media = Media(
-                _id=str(uuid.uuid4()),
+                _id=str(ObjectId()),
                 url=url,
-                source_url=source_url,
-                type='image',
+                media_type='IMAGE',
                 width=processed['width'],
                 height=processed['height'],
-                blur_hash=processed['blur_hash'],
-                file_size=processed['file_size'],
-                uploaded_by=user_id,
-                blurHashAt=datetime.now()
+                blurHash=processed['blur_hash'],
+                userId=user_id,
+                source = source,
+                blurHashAt=datetime.utcnow()
             )
             db.session.add(media)
+            db.session.flush()
             
-            db.session.commit()
-            
+            MediaService._send_media_create_event(media)
+
+            db.session.commit
+
             return create_response(
                 code=0,
                 data={
                     '_id': media._id,
                     'url': media.url,
-                    'type': media.type,
+                    'pg_id': media.pg_id,
                     'width': media.width,
                     'height': media.height,
-                    'blur_hash': media.blurHash,
-                    'file_size': media.fileSize,
-                    'blurHashAt': media.blurHashAt,
                     'duration': media.duration,
-                    'flow_document': media.flow_document,
                     'media_type': media.media_type,
                     'source': media.source
                 },
@@ -290,42 +376,42 @@ class MediaService:
             logger.error(f"Error importing media from URL: {str(e)}")
             return create_response(code=500, message=f"Failed to import media: {str(e)}")
     
-    @staticmethod
-    def batch_import_from_urls(urls: List[str], user_id: str) -> dict:
+    # @staticmethod
+    # def batch_import_from_urls(urls: List[str], user_id: str) -> dict:
 
-        results = {
-            'successful': [],
-            'failed': []
-        }
+    #     results = {
+    #         'successful': [],
+    #         'failed': []
+    #     }
         
-        def process_url(url):
-            return MediaService.import_from_url(url, user_id)
+    #     def process_url(url):
+    #         return MediaService.import_from_url(url, user_id)
         
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            future_to_url = {executor.submit(process_url, url): url for url in urls}
+    #     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    #         future_to_url = {executor.submit(process_url, url): url for url in urls}
             
-            for future in as_completed(future_to_url):
-                url = future_to_url[future]
-                try:
-                    result = future.result()
-                    if result['code'] == 0:
-                        results['successful'].append(result['data'])
-                    else:
-                        results['failed'].append({
-                            'url': url,
-                            'error': result['msg']
-                        })
-                except Exception as e:
-                    results['failed'].append({
-                        'url': url,
-                        'error': str(e)
-                    })
+    #         for future in as_completed(future_to_url):
+    #             url = future_to_url[future]
+    #             try:
+    #                 result = future.result()
+    #                 if result['code'] == 0:
+    #                     results['successful'].append(result['data'])
+    #                 else:
+    #                     results['failed'].append({
+    #                         'url': url,
+    #                         'error': result['msg']
+    #                     })
+    #             except Exception as e:
+    #                 results['failed'].append({
+    #                     'url': url,
+    #                     'error': str(e)
+    #                 })
         
-        return create_response(
-            code=0,
-            data=results,
-            message=f"Processed {len(urls)} URLs: {len(results['successful'])} successful, {len(results['failed'])} failed"
-        )
+    #     return create_response(
+    #         code=0,
+    #         data=results,
+    #         message=f"Processed {len(urls)} URLs: {len(results['successful'])} successful, {len(results['failed'])} failed"
+    #     )
     
     @staticmethod
     def get_media_by_id(media_id: str) -> dict:
@@ -333,22 +419,11 @@ class MediaService:
         try:
             media = Media.query.filter_by(_id=media_id).first()
             if not media:
-                return create_response(code=404, message="Media not found")
+                return create_response(code=200, message="Media not found")
             
             return create_response(
                 code=0,
-                data={
-                    '_id': media._id,
-                    'url': media.url,
-                    'source_url': media.source_url,
-                    'type': media.type,
-                    'width': media.width,
-                    'height': media.height,
-                    'blur_hash': media.blur_hash,
-                    'file_size': media.file_size,
-                    'created_at': media.created_at.isoformat() if media.created_at else None,
-                    'updated_at': media.updated_at.isoformat() if media.updated_at else None
-                },
+                data= media.to_dict(include_meta=True),
                 message="Success"
             )
         except Exception as e:
@@ -356,25 +431,25 @@ class MediaService:
             return create_response(code=500, message=f"Failed to get media: {str(e)}")
     
     
-    @staticmethod
-    def _flush_media_batch(items: List[dict]):
-        """
-        Batch update media records
-        """
-        for item in items:
-            try:
-                media = item['media']
-                media.url = item['url']
-                media.width = item['width']
-                media.height = item['height']
-                media.blur_hash = item['blur_hash']
-                media.file_size = item['file_size']
-                media.updated_at = datetime.utcnow()
-            except Exception as e:
-                logger.error(f"Failed to update media {item['media']._id}: {str(e)}")
+    # @staticmethod
+    # def _flush_media_batch(items: List[dict]):
+    #     """
+    #     Batch update media records
+    #     """
+    #     for item in items:
+    #         try:
+    #             media = item['media']
+    #             media.url = item['url']
+    #             media.width = item['width']
+    #             media.height = item['height']
+    #             media.blur_hash = item['blur_hash']
+    #             media.file_size = item['file_size']
+    #             media.updated_at = datetime.utcnow()
+    #         except Exception as e:
+    #             logger.error(f"Failed to update media {item['media']._id}: {str(e)}")
         
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Failed to commit batch: {str(e)}")
+    #     try:
+    #         db.session.commit()
+    #     except Exception as e:
+    #         db.session.rollback()
+    #         logger.error(f"Failed to commit batch: {str(e)}")

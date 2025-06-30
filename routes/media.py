@@ -3,10 +3,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from marshmallow import ValidationError
 from services.media import MediaService
-from schemas.media import (
-    MediaUploadSchema,
-    MediaImportUrlSchema,
-)
 from utils.response_utils import create_response
 from extensions import db
 import logging
@@ -17,14 +13,12 @@ logger = logging.getLogger(__name__)
 
 media_bp = Blueprint('media', __name__, url_prefix='/v3/media')
 
-media_upload_schema = MediaUploadSchema()
-media_import_url_schema = MediaImportUrlSchema()
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'avi', 'mkv',
                        'webm', 'flv', 'wmv', 'm4v', 'm4a', 'aac', 'ogg', 'wav', 'mp3'}
 
 MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 15 * 1024 * 1024))
-CLOUDFRONT_PREFIX = os.getenv('CLOUDFRONT_URL', '')
+
 AWS_BUCKET = os.getenv('AWS_BUCKET_NAME')
 
 
@@ -43,7 +37,7 @@ def allowed_file(filename):
 
 
 @media_bp.route('/upload', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def upload_media():
     """
     Single media file
@@ -73,11 +67,9 @@ def upload_media():
             ), 200
         
 
-
         media_type = request.form.get('type', 'image')
         source = request.form.get('source', 'INTERNET')
         
-
 
         result = MediaService.upload_media(
             file=file,
@@ -103,60 +95,60 @@ def upload_media():
         return create_response(code=200, message="Failed to upload media"), 200
 
 
-@media_bp.route('/batch-upload', methods=['POST'])
-@jwt_required()
-def batch_upload_media():
-    """
-    Multiple media files
+# @media_bp.route('/batch-upload', methods=['POST'])
+# @jwt_required()
+# def batch_upload_media():
+#     """
+#     Multiple media files
     
-    Form Data:
-        files: Multiple image files
+#     Form Data:
+#         files: Multiple image files
         
-    Returns:
-        JSON response with uploaded media data
-    """
-    try:
-        current_user_id = get_jwt_identity()
+#     Returns:
+#         JSON response with uploaded media data
+#     """
+#     try:
+#         current_user_id = get_jwt_identity()
         
-        files = request.files.getlist('files')
-        if not files:
-            return create_response(code=200, message="No files provided"), 200
+#         files = request.files.getlist('files')
+#         if not files:
+#             return create_response(code=200, message="No files provided"), 200
         
-        for file in files:
-            if not allowed_file(file.filename):
-                return create_response(
-                    code=200,
-                    message=f"File '{file.filename}' type not allowed"
-                ), 200
+#         for file in files:
+#             if not allowed_file(file.filename):
+#                 return create_response(
+#                     code=200,
+#                     message=f"File '{file.filename}' type not allowed"
+#                 ), 200
         
-        source = request.form.get('source', 'INTERNET')
+#         source = request.form.get('source', 'INTERNET')
 
 
-        result = MediaService.batch_upload_media(
-            files=files,
-            user_id=current_user_id,
-            source = source
-        )
+#         result = MediaService.batch_upload_media(
+#             files=files,
+#             user_id=current_user_id,
+#             source = source
+#         )
         
-        if result['code'] == 0:
-            return create_response(
-                code=0,
-                data=result['data'],
-                message="Media files uploaded successfully"
-            ), 201
-        else:
-            return create_response(
-                code=result['code'],
-                message=result['msg']
-            ), 200
+#         if result['code'] == 0:
+#             return create_response(
+#                 code=0,
+#                 data=result['data'],
+#                 message="Media files uploaded successfully"
+#             ), 201
+#         else:
+#             return create_response(
+#                 code=result['code'],
+#                 message=result['msg']
+#             ), 200
             
-    except Exception as e:
-        logger.error(f"Error batch uploading media: {str(e)}")
-        return create_response(code=200, message="Failed to upload media files"), 200
+#     except Exception as e:
+#         logger.error(f"Error batch uploading media: {str(e)}")
+#         return create_response(code=200, message="Failed to upload media files"), 200
 
 
 @media_bp.route('/import-url', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def import_media_from_url():
     """
     Media from URL
@@ -177,12 +169,10 @@ def import_media_from_url():
             return create_response(code=200, message="Request body is required"), 200
             
         try:
-            validated_data = media_import_url_schema.load(data)
+            validated_data = data
         except ValidationError as e:
             return create_response(code=200, message="Validation error", data=e.messages), 200
         
-
-
         source = request.form.get('source', 'INTERNET')
 
         result = MediaService.import_from_url(
@@ -208,55 +198,55 @@ def import_media_from_url():
         return create_response(code=200, message="Failed to import media"), 200
 
 
-@media_bp.route('/batch-import-urls', methods=['POST'])
-@jwt_required()
-def batch_import_media_from_urls():
-    """
-    Multiple media from URLs
+# @media_bp.route('/batch-import-urls', methods=['POST'])
+# @jwt_required()
+# def batch_import_media_from_urls():
+#     """
+#     Multiple media from URLs
     
-    Request Body:
-        urls: Array of image URLs to import
+#     Request Body:
+#         urls: Array of image URLs to import
         
-    Returns:
-        JSON response with import results
-    """
-    try:
-        current_user_id = get_jwt_identity()
+#     Returns:
+#         JSON response with import results
+#     """
+#     try:
+#         current_user_id = get_jwt_identity()
         
-        data = request.get_json()
-        if not data:
-            return create_response(code=200, message="Request body is required"), 200
+#         data = request.get_json()
+#         if not data:
+#             return create_response(code=200, message="Request body is required"), 200
             
-        try:
-            validated_data = media_batch_import_schema.load(data)
-        except ValidationError as e:
-            return create_response(code=200, message="Validation error", data=e.messages), 200
+#         try:
+#             validated_data = media_batch_import_schema.load(data)
+#         except ValidationError as e:
+#             return create_response(code=200, message="Validation error", data=e.messages), 200
         
-        source = request.form.get('source', 'INTERNET')
+#         source = request.form.get('source', 'INTERNET')
         
 
 
-        result = MediaService.batch_import_from_urls(
-            urls=validated_data['urls'],
-            user_id=current_user_id,
-            source = source
-        )
+#         result = MediaService.batch_import_from_urls(
+#             urls=validated_data['urls'],
+#             user_id=current_user_id,
+#             source = source
+#         )
         
-        if result['code'] == 0:
-            return create_response(
-                code=0,
-                data=result['data'],
-                message="Media imported successfully"
-            ), 201
-        else:
-            return create_response(
-                code=result['code'],
-                message=result['msg']
-            ), 200
+#         if result['code'] == 0:
+#             return create_response(
+#                 code=0,
+#                 data=result['data'],
+#                 message="Media imported successfully"
+#             ), 201
+#         else:
+#             return create_response(
+#                 code=result['code'],
+#                 message=result['msg']
+#             ), 200
             
-    except Exception as e:
-        logger.error(f"Error batch importing media: {str(e)}")
-        return create_response(code=500, message="Failed to import media"), 500
+#     except Exception as e:
+#         logger.error(f"Error batch importing media: {str(e)}")
+#         return create_response(code=500, message="Failed to import media"), 500
 
 
 @media_bp.route('/<string:media_id>', methods=['GET'])
@@ -291,6 +281,8 @@ def get_media(media_id):
         return create_response(code=200, message="Failed to get media"), 200
 
 
+
+from sqlalchemy.sql import text
 @media_bp.route('/health', methods=['GET'])
 def health_check():
     """
@@ -307,7 +299,7 @@ def health_check():
 
         db_status = "healthy"
         try:
-            db.session.execute('SELECT 1')
+            db.session.execute(text('SELECT 1'))
         except Exception as e:
             db_status = f"unhealthy: {str(e)}"
         
@@ -322,7 +314,6 @@ def health_check():
                 'database': db_status,
                 'config': {
                     'max_file_size': MAX_FILE_SIZE,
-                    'cloudfront_url': CLOUDFRONT_PREFIX,
                     'bucket': AWS_BUCKET
                 }
             },

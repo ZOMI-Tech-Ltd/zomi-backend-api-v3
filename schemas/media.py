@@ -116,20 +116,15 @@ class MediaBatchImportSchema(ma.Schema):
 
 class MediaResponseSchema(ma.Schema):
 
-
-
     _id = fields.String(dump_only=True)
     url = fields.URL(dump_only=True)
 
-    type = fields.String(dump_only=True)
+   
     width = fields.Integer(dump_only=True)
     height = fields.Integer(dump_only=True)
     blur_hash = fields.String(dump_only=True, data_key='blurHash')
-    file_size = fields.Integer(dump_only=True, data_key='fileSize')
     
-    # Optional fields
-    original_filename = fields.String(dump_only=True, allow_none=True)
-    uploaded_by = fields.String(dump_only=True, allow_none=True)
+    
     
     # Timestamps
     created_at = fields.DateTime(format='iso', dump_only=True)
