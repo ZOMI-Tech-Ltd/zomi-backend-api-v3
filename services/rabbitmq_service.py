@@ -8,6 +8,8 @@ from dataclasses import asdict
 import os
 from contextlib import contextmanager
 from mq.enums import *
+from bson import ObjectId
+
 
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,6 @@ class RabbitMQService:
             pass
     
     def send_message(self, queue_name: str, data: Dict[str, Any]) -> bool:
-
         try:
             with self.get_channel() as channel:
                 channel.queue_declare(queue=queue_name, durable=True)
@@ -102,8 +103,11 @@ class RabbitMQService:
         
         data = {k: v for k, v in asdict(message).items() if v is not None}
         
-        return self.send_message(QueueName.MEDIA_CREATE.value, data)
+        return self.send_message(queue_name=QueueName.MEDIA_CREATE.value, data=data)
     
+
+
+
     def send_dish_collect(self, user_id: str, dish_id: str, 
                          state: CollectState) -> bool:
         message = DishCollectMessage(
@@ -114,6 +118,9 @@ class RabbitMQService:
         
         return self.send_message(QueueName.DISH_COLLECT.value, asdict(message))
     
+
+
+
     def send_taste_create(self, taste_id: str, user_id: str, dish_id: str,
                          comment: str, recommend_state: RecommendState,
                          media_ids: Optional[List[str]] = None) -> bool:

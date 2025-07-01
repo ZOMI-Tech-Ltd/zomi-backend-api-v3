@@ -23,9 +23,9 @@ class Media(db.Model):
 
 
     url = db.Column(db.String(500), nullable=True)
-    width = db.Column(db.Integer, nullable=True)
-    height = db.Column(db.Integer, nullable=True)
-    fileSize = db.Column("fileSize", nullable=True)
+    width = db.Column(db.JSON, nullable=True)
+    height = db.Column(db.JSON, nullable=True)
+    fileSize = db.Column("filesize", nullable=True)
     blurHash = db.Column("blurHash", nullable=True)
     media_type = db.Column("media_type", nullable=True, default = "IMAGE")
     source = db.Column("source", nullable=True)
@@ -38,25 +38,25 @@ class Media(db.Model):
     updatedAt = db.Column("updatedAt", default=datetime.utcnow, onupdate=datetime.utcnow)
     # deletedAt = db.Column("deletedAt", nullable=True)
     blurHashAt = db.Column("blurHashAt", nullable=True)
-    duration = db.Column("duration", nullable=True)
+    duration = db.Column("duration", nullable=True, default = 0)
 
-
+    fileSize = db.Column("fileSize", nullable=True, default = 0)
     __v = db.Column('__v', db.Integer, nullable=False, default=0)
     _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c') 
 
     flow_document = db.Column(db.JSON, default = {"":""})
-
+    flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
 
     def __repr__(self):
-        return f"<Media(id={self._id}, url={self.url}, type={self.type})>"
+        return f"<Media(id={self._id}, url={self.url}, media_type={self.media_type})>"
     
     def to_dict(self, include_meta=False):
         data = {
             '_id': self._id,
             'pg_id': self.pg_id,
             'url': self.url,
-            'type': self.media_type,
+            'media_type': self.media_type,
             'width': self.width,
             'height': self.height,
             'blurHash': self.blurHash,

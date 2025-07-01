@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 MAX_WORKERS = 8
 BATCH_SIZE = 128
-CLOUDFRONT_PREFIX = os.getenv('CLOUDFRONT_URL', '')
+CLOUDFRONT_PREFIX = os.getenv('CLOUDFRONT_URL', 'https://d2alght3o41s9j.cloudfront.net/')
 AWS_BUCKET = os.getenv('AWS_BUCKET_NAME')
 AWS_REGION = os.getenv('AWS_REGION', 'us-west-1')
 
@@ -51,7 +51,7 @@ class MediaService:
         try:
             rabbitmq = MediaService._get_rabbitmq_service()
 
-            media_type = MediaType.VIDEO if media.type.upper() == 'VIDEO' else MediaType.IMAGE
+            media_type = MediaType.VIDEO if media.media_type.upper() == 'VIDEO' else MediaType.IMAGE
 
 
             source_map = {
@@ -82,10 +82,7 @@ class MediaService:
     def generate_blurhash_from_image(image: Image.Image) -> str:
         try:
             # Ensure we have a PIL Image object
-            if not isinstance(image, Image.Image):
-                logger.error(f"Expected PIL Image, got {type(image)}")
-                return None
-            
+
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
@@ -94,14 +91,14 @@ class MediaService:
             if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
                 image.thumbnail(max_size, Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
             
-            # Convert to numpy array for blurhash
-            image_array = np.array(image)
             
             # Generate blurhash
             x_components = 4
             y_components = 3
-            blurhash = encode(image_array, x_components, y_components)
+            blurhash = encode(image, x_components, y_components)
             
+
+
             return blurhash
         except Exception as e:
             logger.error(f"Error generating blurhash: {str(e)}")
@@ -164,7 +161,7 @@ class MediaService:
     def upload_to_s3(file_data: bytes, content_type: str = 'image/jpeg') -> str:
         try:
             #unique key
-            key = f"menu-media/{datetime.now().strftime('%Y%m%d')}/{ObjectId()}.jpeg"
+            key = f"zomi-dishes/{datetime.now().strftime('%Y%m%d')}/{ObjectId()}.jpeg"
             
             #upload
             s3_client.upload_fileobj(
@@ -238,8 +235,6 @@ class MediaService:
             raise
 
 
-
-
     @staticmethod
     def upload_media(file: FileStorage, user_id: str, media_type: str = 'image', source = str) -> dict:
         try:
@@ -253,6 +248,7 @@ class MediaService:
             #upload
             url = MediaService.upload_to_s3(processed['data'])
             
+            print(url)
             #media record
             media = Media(
                 _id=str(ObjectId()),
@@ -282,7 +278,7 @@ class MediaService:
                     '_id': media._id,
                     'pg_id':media.pg_id,
                     'url': media.url,
-                    'type': media.media_type,
+                    'media_type': media.media_type,
                     'width': media.width,
                     'height': media.height,
                     'blur_hash': media.blurHash
@@ -337,6 +333,7 @@ class MediaService:
             else:
                 url = MediaService.upload_to_s3(processed['data'])
             
+            print(url)
 
             media = Media(
                 _id=str(ObjectId()),
@@ -354,7 +351,7 @@ class MediaService:
             
             MediaService._send_media_create_event(media)
 
-            db.session.commit
+            db.session.commit()
 
             return create_response(
                 code=0,
