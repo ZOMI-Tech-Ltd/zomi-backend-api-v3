@@ -9,22 +9,19 @@ from models.taste import Taste
 from utils.response_utils import create_response
 from sqlalchemy import and_, or_
 from datetime import datetime
-import uuid
+from bson import ObjectId
 import logging
+
 
 logger = logging.getLogger(__name__)
 
 
 class DishManagementService:
 
-
-
     @staticmethod
     def create_dish(user_id, title, merchant_id, price, description=None, 
                    media_ids=None, ingredients=None, **kwargs):
         """
-        Create a new dish with validation and related data setup
-        
         Args:
             user_id: ID of the user creating the dish
             title: Dish name
@@ -50,18 +47,18 @@ class DishManagementService:
                     return create_response(code=200, message="Some media IDs are invalid")
             
             new_dish = Dish(
-                _id=str(uuid.uuid4()),
+                _id=str(ObjectId()),
                 title=title,
                 merchant_col=merchant_id,
                 price=price,
                 description=description,
-                # Set media as JSON array matching the Go structure
                 media=[{"mediaId": media_id} for media_id in (media_ids or [])]
             )
             
             # Set additional attributes from kwargs
             allowed_attrs = ['pickup_enabled', 'delivery_enabled', 'dine_in_enabled',
                            'cuisine', 'meal_type', 'flavor', 'course_type']
+            
             for attr in allowed_attrs:
                 if attr in kwargs:
                     setattr(new_dish, attr, kwargs[attr])
@@ -97,13 +94,11 @@ class DishManagementService:
             return create_response(code=500, message=f"Failed to create dish: {str(e)}")
     
     @staticmethod
-    def update_dish(dish_id, user_id, **update_data):
+    def update_dish(dish_id, **update_data):
         """
-        Update an existing dish
         
         Args:
             dish_id: ID of the dish to update
-            user_id: ID of the user performing the update
             **update_data: Fields to update
             
         Returns:

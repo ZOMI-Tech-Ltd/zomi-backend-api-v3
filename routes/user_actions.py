@@ -3,7 +3,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.user_action_service import UserActionService
 from utils.response_utils import create_response
 
-
 user_actions_bp = Blueprint('user_actions', __name__, url_prefix='/v3')
 
 
@@ -90,7 +89,6 @@ def create_many_tastes():
             mood=item.get('mood',0),
             tags=item.get('tags',[]),
         )
-        print(result)
         results.append(result)
 
     if all(result['code'] == 0 for result in results):
@@ -302,3 +300,42 @@ def unlike_taste(taste_id):
     )
 
     return create_response(code=0, data=result['data'], message=result['msg']), 200
+
+
+
+# Add this new route for UGC dish creation
+@user_actions_bp.route('/dish/add', methods=['POST'])
+@jwt_required()
+def add_dish_ugc():
+
+    current_user_id = get_current_user_id()
+    
+    if not current_user_id:
+        return create_response(code=200, message="User authentication required"), 200
+    
+    data = request.get_json()
+    if not data:
+        return create_response(code=200, message="Request body is required"), 200
+    
+    if not data.get('merchantId'):
+        return create_response(code=200, message="Merchant ID is required"), 200
+    
+    if not data.get('name'):
+        return create_response(code=200, message="Dish name is required"), 200
+    
+
+    result = UserActionService.create_dish_ugc(
+        user_id=current_user_id,
+        merchant_id=data.get('merchantId'),
+        name=data.get('name'),
+        price=data.get('price'),
+        media_ids=data.get('mediaIds'),
+        description=data.get('description'),
+        characteristic=data.get('characteristic')
+    )
+    
+
+    if result['code'] == 0:
+        return create_response(code=0, data=result['data'], message=result['msg']), 200
+    else:
+        return create_response(code=200, message=result['msg']), 200

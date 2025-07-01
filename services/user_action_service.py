@@ -9,7 +9,11 @@ from utils.response_utils import create_response
 from sqlalchemy.orm import joinedload
 from models.merchant import Merchant
 from models.media import Media
-from models.taste import TasteRecommendState
+from models.taste import RecommendState
+from mq.enums import *
+from services.rabbitmq_service import RabbitMQService
+from services.dish_management_service import DishManagementService
+
 class UserActionService:
 
     OBJECT_TYPE_DISH = 'DISH' 
@@ -18,6 +22,9 @@ class UserActionService:
     TASTE_MESSAGE = "From Quick Recommendation"
 
 
+    @staticmethod
+    def _get_rabbitmq_service():
+        return RabbitMQService()
 
     @staticmethod
     def _check_object_exists(object_id, object_type):
@@ -116,7 +123,7 @@ class UserActionService:
         if deleted_taste:
             # Restore the deleted taste
             deleted_taste.restore()
-            deleted_taste.recommendState = 1
+            deleted_taste.recommendState = TasteRecommendState.RECOMMEND
             deleted_taste.state = deleted_taste.calculate_state()
 
         else:
@@ -125,7 +132,7 @@ class UserActionService:
                             dishId=dish_id,
                             comment = None,
                           isVerified = False,
-                          recommendState = 1,
+                          recommendState = TasteRecommendState.RECOMMEND,
                           usefulTotal = 0,
                           flow_document = {"Source":"Quick Recommendation"},
                           mediaIds = [],
@@ -153,7 +160,6 @@ class UserActionService:
 
 
 
-
     @staticmethod
     def unrecommend_dish(user_id, dish_id):
         taste = Taste.active_tastes().filter_by(
@@ -163,6 +169,10 @@ class UserActionService:
 
         if not taste:
             return create_response(code=404, message="Not recommended yet", data=None)
+
+        taste.recommendState = RecommendState.NOT_RECOMMEND
+        taste.state = taste.calculate_state()
+
 
         taste.soft_delete()
         UserActionService._update_dish_recommend_count(dish_id)
@@ -204,13 +214,24 @@ class UserActionService:
 
 
         else:
-            new_collection = Collection(user=user_id, object=dish_id, objectType=UserActionService.OBJECT_TYPE_DISH,
-                                    flow_document = {"Source":"Collect dish by user"})
+            new_collection = Collection(user=user_id, 
+                                        object=dish_id, 
+                                        objectType=UserActionService.OBJECT_TYPE_DISH,
+                                        flow_document = {"Source":"Collect dish by user"}
+                                        )
                                     
             db.session.add(new_collection)
 
         try:
             db.session.commit()
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+
+            rabbitmq.send_dish_collect(user_id=user_id, 
+                                       dish_id=dish_id, 
+                                       state=CollectState.COLLECT)
+            
+
             return create_response(code=0, message="Collected successfully", data=None)
         except Exception as e:
             db.session.rollback()
@@ -234,6 +255,12 @@ class UserActionService:
 
         try:
             db.session.commit()
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            rabbitmq.send_dish_collect(user_id=user_id, 
+                                       dish_id=dish_id, 
+                                       state=CollectState.UNCOLLECT)
+
             return create_response(code=0, message="Uncollected successfully", data=None)
         except Exception as e:
             db.session.rollback()
@@ -517,21 +544,26 @@ class UserActionService:
                     return create_response(code=0, message="Invalid recommend state")
                 taste.recommendState = recommend_state
             
-            if media_ids is not None:
-                #check if media ids exist in media table
-                media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
-                if len(media_ids) != len(media_ids):
+            if media_ids:
+                valid_media_ids = []
+                for media_id in media_ids:
+                    if Media.query.filter_by(_id=media_id).first():
+                        valid_media_ids.append(media_id)
+                if len(valid_media_ids) != len(media_ids):
                     return create_response(code=0, message="Invalid media ids")   
-                taste.mediaIds = media_ids
+                taste.mediaIds = valid_media_ids
+
+
             
             if mood is not None:
                 if mood not in [0, 1, 2, 3]:
                     return create_response(code=0, message="Invalid mood value")
                 taste.mood = mood
             
-            if tags is not None:
-                taste.tags = tags
             
+            
+            taste.tags= tags or []
+        
             # Update verification status since content changed
             taste.isVerified = False
             
@@ -545,10 +577,20 @@ class UserActionService:
             db.session.add(taste)
             db.session.commit()
 
-            # Update dish statistics if recommendation state changed
-            if recommend_state is not None:
-                UserActionService._update_dish_recommend_count(taste.dishId)
-             
+            UserActionService._update_dish_recommend_count(taste._id)
+
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            rabbitmq.send_taste_create(
+                taste_id=taste._id,
+                user_id=user_id,
+                dish_id=dish_id,
+                comment=comment,
+                recommend_state=taste.recommendState,
+                media_ids=media_ids
+            )
+
+
             return create_response(
                 code=0, 
                 data={
@@ -575,9 +617,78 @@ class UserActionService:
             return create_response(code=0, message="Taste not found")
 
         taste.soft_delete()
+        taste.recommendState = RecommendState.NOT_RECOMMEND
+        taste.state = taste.calculate_state()
+
+        # rabbitmq = UserActionService._get_rabbitmq_service()
+        # rabbitmq.send_taste_create(
+        #     taste_id=taste._id,
+        #     user_id=user_id,
+        #     dish_id=taste.dishId,
+        #     comment=taste.comment,
+        #     recommend_state=taste.recommendState,
+        #     media_ids=taste.mediaIds
+        # )
+
+
         UserActionService._update_dish_recommend_count(taste.dishId)
 
         
         db.session.commit()
         return create_response(code=0, message="Taste deleted successfully")
 
+    @staticmethod
+    def create_dish_ugc(user_id, merchant_id, name, price=None, media_ids=None, 
+                       description=None, characteristic=None):
+       
+        try:
+            
+            merchant = Merchant.query.filter_by(_id=merchant_id).first()
+            if not merchant:
+                return create_response(code=404, message="Merchant not found")
+            
+
+            if media_ids:
+                valid_media = Media.query.filter(Media._id.in_(media_ids)).all()
+                if len(valid_media) != len(media_ids):
+                    return create_response(code=400, message="Some media IDs are invalid")
+            
+            DishManagementService.create_dish(
+                user_id=user_id,
+                merchant_id=merchant_id,
+                title=name,
+                price=price,
+                media_ids=media_ids,
+                description=description
+            )
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            success = rabbitmq.send_taste_add_dish(
+                user_id=user_id,
+                merchant_id=merchant_id,
+                name=name,
+                price=price,
+                media_ids=media_ids,
+                description=description,
+                characteristic=characteristic
+            )
+            
+            if success:
+                return create_response(
+                    code=0,
+                    data={
+                        "merchant_id": merchant_id,
+                        "name": name,
+                        "status": "pending_creation"
+                    },
+                    message="Dish creation request submitted successfully"
+                )
+            else:
+                return create_response(
+                    code=500,
+                    message="Failed to submit dish creation request"
+                )
+                
+        except Exception as e:
+            print(f"Error creating dish through UGC: {e}")
+            return create_response(code=500, message="Failed to create dish")
