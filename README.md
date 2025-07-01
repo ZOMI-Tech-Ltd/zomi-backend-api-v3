@@ -1,93 +1,508 @@
-# rec-pdp
+# ZOMI Restaurant Recommendation API
 
-## Description
+A Flask-based API service for restaurant dish recommendations, user interactions, and media management.
 
-`rec-pdp` is a Flask-based API service designed to provide recommendations and features for product display pages (PDP), likely focusing on dishes. It uses a PostgreSQL database for data storage and JWT (JSON Web Tokens) for securing its endpoints. The application is structured with blueprints for modularity, separating concerns like dish information, user actions, and authentication.
+## Table of Contents
+- [Overview](#overview)
+- [Authentication](#authentication)
+- [API Endpoints](#api-endpoints)
+  - [Dish Endpoints](#dish-endpoints)
+  - [User Actions](#user-actions)
+  - [Taste Management](#taste-management)
+  - [Media Management](#media-management)
+- [Message Queue Integration](#message-queue-integration)
+- [Response Format](#response-format)
+- [Environment Variables](#environment-variables)
 
+## Overview
+
+This API provides endpoints for:
+- Viewing dish information and recommendations
+- Managing user collections and recommendations
+- Creating and managing user-generated content (UGC)
+- Uploading and processing media files
+- Integration with RabbitMQ for asynchronous processing
+
+## Authentication
+
+Most endpoints require JWT authentication. Include the JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+Endpoints marked with 🔓 support optional authentication (enhanced features when authenticated).
 
 ## API Endpoints
 
-The API is versioned with a `/v3` prefix for most new endpoints.
+### Dish Endpoints
 
-### Dishes (`/v3/dish`)
+#### Get Dish Overview 🔓
+```
+GET /v3/dish/{dish_id}/overview
+```
 
-*   **`GET /v3/dish/<dish_id>/overview`**
-    *   **Description:** Retrieves an overview for a specific dish.
-    *   **Path Parameters:**
-        *   `dish_id` (string): The ID of the dish.
-    *   **Query Parameters (Optional):**
-        *   `lat` (float): Latitude for location context.
-        *   `lon` (float): Longitude for location context.
-    *   **Authentication:** Optional JWT. If a valid token is provided, `current_user_id` is available to the service.
-    *   **Responses:**
-        *   `200 OK`: Returns dish overview data.
-        *   `404 Not Found`: Dish not found or other error.
+Retrieves detailed information about a specific dish.
 
-### User Actions (`/v3`)
+**Query Parameters:**
+- `lat` (float, optional): User latitude for distance calculation
+- `lon` (float, optional): User longitude for distance calculation
 
-These endpoints generally require JWT authentication. The user ID is typically extracted from the JWT. However, a helper function `get_current_user_id()` exists that can fall back to a `user_id` query parameter, which might be used for development or testing.
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "_id": "dish_id",
+    "title": "Dish Name",
+    "price": 2800,
+    "images": {
+      "url": "https://...",
+      "width": 800,
+      "height": 600
+    },
+    "recommendedCount": 42,
+    "merchant": {
+      "_id": "merchant_id",
+      "name": "Restaurant Name",
+      "distance_km": 2.5
+    },
+    "isCollected": false,
+    "isRecommended": false
+  },
+  "msg": "Success"
+}
+```
 
-*   **`POST /v3/dish/recommend/<dish_id>`**
-    *   **Description:** Allows an authenticated user to recommend a dish.
-    *   **Path Parameters:** `dish_id` (string)
-    *   **Headers:** `Authorization: Bearer <your_jwt_token>`
-    *   **Responses:**
-        *   `200 OK` or `201 Created`: Recommendation successful.
-        *   `401 Unauthorized`: Invalid or missing token.
-        *   `404 Not Found`: Dish not found.
+### User Actions
 
-*   **`DELETE /v3/dish/recommend/<dish_id>`**
-    *   **Description:** Allows an authenticated user to remove their recommendation for a dish.
-    *   **Path Parameters:** `dish_id` (string)
-    *   **Headers:** `Authorization: Bearer <your_jwt_token>`
-    *   **Responses:**
-        *   `200 OK` or `204 No Content`: Unrecommend successful.
-        *   `401 Unauthorized`: Invalid or missing token.
-        *   `404 Not Found`: Dish or recommendation not found.
+#### Add Dish (UGC) 🔒
+```
+POST /v3/dish/add
+```
 
-*   **`POST /v3/dish/collect/<dish_id>`**
-    *   **Description:** Allows an authenticated user to add a dish to their collection.
-    *   **Path Parameters:** `dish_id` (string)
-    *   **Headers:** `Authorization: Bearer <your_jwt_token>`
-    *   **Responses:**
-        *   `200 OK` or `201 Created`: Collection successful.
-        *   `401 Unauthorized`: Invalid or missing token.
-        *   `404 Not Found`: Dish not found.
+Create a new dish through user-generated content flow.
 
-*   **`DELETE /v3/dish/collect/<dish_id>`**
-    *   **Description:** Allows an authenticated user to remove a dish from their collection.
-    *   **Path Parameters:** `dish_id` (string)
-    *   **Headers:** `Authorization: Bearer <your_jwt_token>`
-    *   **Responses:**
-        *   `200 OK` or `204 No Content`: Removal from collection successful.
-        *   `401 Unauthorized`: Invalid or missing token.
-        *   `404 Not Found`: Dish or collection item not found.
+**Request Body:**
+```json
+{
+  "merchantId": "merchant_id",
+  "name": "Dish Name",
+  "price": 2800,
+  "mediaIds": ["media_id1"],
+  "description": "Delicious dish",
+  "characteristic": "Spicy and savory"
+}
+```
 
+#### Recommend Dish 🔒
+```
+POST /v3/dish/recommend/{dish_id}
+```
+
+Quick recommendation without detailed review.
+
+**Response:**
+```json
+{
+  "code": 0,
+  "msg": "Recommended successfully"
+}
+```
+
+#### Unrecommend Dish 🔒
+```
+DELETE /v3/dish/recommend/{dish_id}
+```
+
+Remove recommendation (sets recommendState=2, preserves record).
+
+#### Collect Dish 🔒
+```
+POST /v3/dish/collect/{dish_id}
+```
+
+Add dish to user's collection.
+
+#### Uncollect Dish 🔒
+```
+DELETE /v3/dish/collect/{dish_id}
+```
+
+Remove dish from user's collection.
+
+#### Get User Items by Merchant 🔒
+```
+GET /v3/merchant/{merchant_id}/user-items
+```
+
+Get user's collected and recommended dishes within a merchant.
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "collected": ["dish_id1", "dish_id2"],
+    "recommended": ["taste_id1", "taste_id2"],
+    "merchant": {
+      "_id": "merchant_id",
+      "name": "Restaurant Name"
+    }
+  }
+}
+```
+
+### Taste Management
+
+#### Get User Taste Total 🔒
+```
+POST /v3/taste/userTotal
+```
+
+Get total number of user's taste reviews.
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "total": 25
+  }
+}
+```
+
+#### Get Taste Details 🔒
+```
+GET /v3/taste/{taste_id}
+```
+
+Get detailed information about a specific taste review.
+
+#### Create Taste 🔒
+```
+POST /v3/taste/create
+```
+
+Create a detailed taste review with media and comments.
+
+**Request Body:**
+```json
+{
+  "dishId": "dish_id",
+  "comment": "Amazing flavor!",
+  "mediaIds": ["media_id1", "media_id2"],
+  "mood": 1,
+  "tags": ["spicy", "authentic"],
+  "recommendState": 1
+}
+```
+
+**Mood Values:**
+- 0: Default
+- 1: Must Try
+- 2: To Be Repeated
+- 3: Worth a Shot
+
+**Recommend State:**
+- 0: Default
+- 1: Recommend
+- 2: Not Recommend
+
+#### Create Multiple Tastes 🔒
+```
+POST /v3/taste/createMany
+```
+
+Create multiple taste reviews in one request.
+
+**Request Body:**
+```json
+{
+  "items": [
+    {
+      "dishId": "dish_id1",
+      "comment": "Great!",
+      "mood": 1
+    },
+    {
+      "dishId": "dish_id2",
+      "comment": "Not bad",
+      "mood": 3
+    }
+  ]
+}
+```
+
+#### Edit Taste 🔒
+```
+PUT /v3/taste/edit/{taste_id}
+```
+
+Update an existing taste review.
+
+**Request Body:**
+```json
+{
+  "dishId": "dish_id",
+  "comment": "Updated comment",
+  "mediaIds": ["media_id1"],
+  "mood": 2,
+  "tags": ["updated", "tags"]
+}
+```
+
+#### Delete Taste 🔒
+```
+POST /v3/taste/delete
+```
+
+Soft delete a taste review.
+
+**Request Body:**
+```json
+{
+  "id": "taste_id"
+}
+```
+
+#### Like Taste 🔒
+```
+POST /v3/taste/like/{taste_id}
+```
+
+Like another user's taste review.
+
+#### Unlike Taste 🔒
+```
+DELETE /v3/taste/like/{taste_id}
+```
+
+Remove like from a taste review.
+
+### Media Management
+
+#### Upload Media 🔓
+```
+POST /v3/media/upload
+```
+
+Upload a single media file.
+
+**Form Data:**
+- `file`: The media file (image/video)
+- `type`: Media type ("image" or "video")
+- `source`: Media source ("INTERNET", "USER_AVATAR", "VOLCENGINE")
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "_id": "media_id",
+    "url": "https://cloudfront.net/...",
+    "width": 1920,
+    "height": 1080,
+    "blur_hash": "L6PZfSi_.AyE..."
+  }
+}
+```
+
+#### Import Media from URL 🔓
+```
+POST /v3/media/import-url
+```
+
+Import media from an external URL.
+
+**Request Body:**
+```json
+{
+  "source_url": "https://example.com/image.jpg"
+}
+```
+
+#### Get Media Details 🔓
+```
+GET /v3/media/{media_id}
+```
+
+Get detailed information about a media item.
+
+#### Health Check
+```
+GET /v3/media/health
+```
+
+Check media service health status.
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "status": "healthy",
+    "s3": "healthy",
+    "database": "healthy",
+    "config": {
+      "max_file_size": 15728640,
+      "bucket": "your-bucket-name"
+    }
+  }
+}
+```
+
+## Message Queue Integration
+
+The API sends messages to RabbitMQ for asynchronous processing:
+
+### Queue: `media/create`
+Triggered when media is uploaded or imported.
+```json
+{
+  "mediaId": "media_id",
+  "type": "IMAGE",
+  "url": "https://...",
+  "source": "INTERNET",
+  "width": 1920,
+  "height": 1080
+}
+```
+
+### Queue: `dish/collect`
+Triggered when user collects/uncollects a dish.
+```json
+{
+  "userId": "user_id",
+  "dishId": "dish_id",
+  "state": 1
+}
+```
+States: 1 = collect, 2 = uncollect
+
+### Queue: `taste/create`
+Triggered when user creates a taste review.
+```json
+{
+  "id": "taste_id",
+  "userId": "user_id",
+  "dishId": "dish_id",
+  "comment": "Great dish!",
+  "recommendState": 1,
+  "mediaIds": ["media_id1"]
+}
+```
+
+### Queue: `taste/addDish`
+Triggered when user adds a new dish via UGC.
+```json
+{
+  "userId": "user_id",
+  "merchantID": "merchant_id",
+  "name": "New Dish",
+  "price": 2800,
+  "mediaIds": ["media_id1"],
+  "description": "Description",
+  "characteristic": "Spicy"
+}
+```
+
+## Response Format
+
+All API responses follow this standard format:
+
+```json
+{
+  "code": 0,
+  "data": {},
+  "msg": "Success"
+}
+```
+
+**Common Response Codes:**
+- `0`: Success
+- `200`: Generic error
+- `400`: Bad request
+- `401`: Unauthorized
+- `404`: Not found
+- `409`: Conflict (already exists)
+- `500`: Internal server error
 
 ## Environment Variables
 
-The application uses the following environment variables, configured in the `.env` file:
+```env
+# Database
+POSTGRES_USER=your_user
+POSTGRES_PASSWORD=your_password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=your_database
+POSTGRES_SCHEMA=mongodb
 
-*   `POSTGRES_USER`: Username for the PostgreSQL database.
-*   `POSTGRES_PASSWORD`: Password for the PostgreSQL database.
-*   `POSTGRES_HOST`: Hostname or IP address of the PostgreSQL server.
-*   `POSTGRES_PORT`: Port number for the PostgreSQL server.
-*   `POSTGRES_DB`: Name of the PostgreSQL database.
-*   `POSTGRES_SCHEMA`: PostgreSQL schema to use (e.g., `public`).
-*   `JWT_SECRET_KEY`: A secure secret key for signing JWTs.
+# MongoDB
+MONGODB_URL=mongodb://localhost:27017/
+MONGODB_DB=zomi_backend
+ENABLE_MONGODB_WRITE=true
+MONGODB_FIRST=true
 
-## Project Structure
+# JWT
+JWT_SECRET_KEY=your_secret_key
 
-A brief overview of the key directories:
+# AWS S3
+AWS_ACCESS_KEY=your_access_key
+AWS_SECRET_KEY=your_secret_key
+AWS_BUCKET_NAME=your_bucket
+AWS_REGION=us-west-1
+CLOUDFRONT_URL=https://your-cloudfront.net/
 
-*   `models/`: Contains SQLAlchemy database models (e.g., `User`, `Dish`).
-*   `routes/`: Contains Flask Blueprints defining API routes (e.g., `auth.py`, `dish.py`).
-*   `services/`: Likely contains business logic and service layer functions that interact with models and are called by routes.
-*   `schemas/`: Likely contains Marshmallow schemas for request/response serialization and validation.
-*   `utils/`: For utility functions and helpers.
-*   `cache/`: Potentially for caching mechanisms (Redis config was noted as commented out in `config.py`).
-*   `app.py`: Main application entry point, creates the Flask app instance.
-*   `config.py`: Configuration settings for the application.
-*   `extensions.py`: Initializes Flask extensions like SQLAlchemy, Marshmallow, and JWTManager.
+# RabbitMQ
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+RABBITMQ_VHOST=/
+RABBITMQ_EXCHANGE=app_exchange
 
-## Contributing
+# Media
+MAX_FILE_SIZE=15728640
+```
+
+## Running the Application
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+3. Run the application:
+```bash
+python app.py
+```
+
+The API will be available at `http://localhost:4003`
+
+## Testing
+
+Use the following curl examples to test the endpoints:
+
+```bash
+# Get dish overview
+curl -X GET "http://localhost:4003/v3/dish/DISH_ID/overview?lat=37.7749&lon=-122.4194"
+
+# Recommend a dish (requires auth)
+curl -X POST "http://localhost:4003/v3/dish/recommend/DISH_ID" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Upload media
+curl -X POST "http://localhost:4003/v3/media/upload" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@/path/to/image.jpg" \
+  -F "type=image" \
+  -F "source=INTERNET"
+```
