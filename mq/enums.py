@@ -48,7 +48,7 @@ class MediaCreateMessage:
 class DishCollectMessage:
     userId: str
     dishId: str
-    # state: int  # CollectState
+    state: int  # CollectState
 
 
 @dataclass
@@ -63,6 +63,7 @@ class TasteCreateMessage:
 
 @dataclass
 class TasteAddDishMessage:
+    id: str
     userId: str
     merchantID: str
     name: str

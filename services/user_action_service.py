@@ -9,7 +9,7 @@ from utils.response_utils import create_response
 from sqlalchemy.orm import joinedload
 from models.merchant import Merchant
 from models.media import Media
-from models.taste import RecommendState
+from models.taste import TasteRecommendState
 from mq.enums import *
 from services.rabbitmq_service import RabbitMQService
 from services.dish_management_service import DishManagementService
@@ -123,8 +123,10 @@ class UserActionService:
         if deleted_taste:
             # Restore the deleted taste
             deleted_taste.restore()
-            deleted_taste.recommendState = TasteRecommendState.RECOMMEND
+            deleted_taste.recommendState = TasteRecommendState.YES
             deleted_taste.state = deleted_taste.calculate_state()
+            deleted_taste.updatedAt = datetime.utcnow()
+
 
         else:
             new_taste = Taste(
@@ -132,7 +134,7 @@ class UserActionService:
                             dishId=dish_id,
                             comment = None,
                           isVerified = False,
-                          recommendState = TasteRecommendState.RECOMMEND,
+                          recommendState = TasteRecommendState.YES,
                           usefulTotal = 0,
                           flow_document = {"Source":"Quick Recommendation"},
                           mediaIds = [],
@@ -152,6 +154,30 @@ class UserActionService:
 
         try:
             db.session.commit()
+
+            if deleted_taste:
+                rabbitmq = UserActionService._get_rabbitmq_service()
+                rabbitmq.send_taste_create(
+                taste_id=deleted_taste._id,
+                user_id=user_id,
+                dish_id=dish_id,
+                comment="",
+                recommend_state=TasteRecommendState.YES,
+                media_ids=[]
+            )
+
+            else:
+                rabbitmq = UserActionService._get_rabbitmq_service()
+                rabbitmq.send_taste_create(
+                    taste_id=new_taste._id,
+                    user_id=user_id,
+                    dish_id=dish_id,
+                    comment="",
+                    recommend_state=TasteRecommendState.YES,
+                    media_ids=[]
+                )
+            
+
             return create_response(code=0, message="Recommended successfully", data=None)
         except Exception as e:
             db.session.rollback()
@@ -170,7 +196,7 @@ class UserActionService:
         if not taste:
             return create_response(code=404, message="Not recommended yet", data=None)
 
-        taste.recommendState = RecommendState.NOT_RECOMMEND
+        taste.recommendState = TasteRecommendState.NO
         taste.state = taste.calculate_state()
 
 
@@ -180,7 +206,18 @@ class UserActionService:
 
         try:
             db.session.commit()
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            rabbitmq.send_taste_create(
+                taste_id=taste._id,
+                user_id=user_id,
+                dish_id=dish_id,
+                comment="",
+                recommend_state=TasteRecommendState.NO,
+                media_ids=[]
+            )
             return create_response(code=0, message="Unrecommended successfully", data=None)
+        
         except Exception as e:
             db.session.rollback()
             print(f"Error unrecommending object: {e}")
@@ -653,7 +690,7 @@ class UserActionService:
                 if len(valid_media) != len(media_ids):
                     return create_response(code=400, message="Some media IDs are invalid")
             
-            DishManagementService.create_dish(
+            response=  DishManagementService.create_dish(
                 user_id=user_id,
                 merchant_id=merchant_id,
                 title=name,
@@ -662,8 +699,11 @@ class UserActionService:
                 description=description
             )
 
+            dish_id = response["data"]["_id"]
+
             rabbitmq = UserActionService._get_rabbitmq_service()
             success = rabbitmq.send_taste_add_dish(
+                id=dish_id,
                 user_id=user_id,
                 merchant_id=merchant_id,
                 name=name,
@@ -677,6 +717,7 @@ class UserActionService:
                 return create_response(
                     code=0,
                     data={
+                        "dish_id": dish_id,
                         "merchant_id": merchant_id,
                         "name": name,
                         "status": "pending_creation"

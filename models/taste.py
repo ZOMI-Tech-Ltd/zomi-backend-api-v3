@@ -2,7 +2,7 @@ from extensions import db
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.sql import func
-import uuid
+from bson import ObjectId
 from enum import IntEnum
 
 
@@ -36,7 +36,7 @@ class Taste(db.Model):
 
     __tablename__ = 'taste'
 
-    _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()) )
+    _id = db.Column(db.String(50), primary_key=True, default=lambda: str(ObjectId()) )
     
     dishId = db.Column(db.String(50), nullable=False, default = "")
     comment = db.Column(db.String(50), nullable=True, default = None)

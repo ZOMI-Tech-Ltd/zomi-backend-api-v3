@@ -119,8 +119,6 @@ class RabbitMQService:
         return self.send_message(QueueName.DISH_COLLECT.value, asdict(message))
     
 
-
-
     def send_taste_create(self, taste_id: str, user_id: str, dish_id: str,
                          comment: str, recommend_state: RecommendState,
                          media_ids: Optional[List[str]] = None) -> bool:
@@ -137,12 +135,13 @@ class RabbitMQService:
         
         return self.send_message(QueueName.TASTE_CREATE.value, data)
     
-    def send_taste_add_dish(self, user_id: str, merchant_id: str, name: str,
+    def send_taste_add_dish(self, id: str, user_id: str, merchant_id: str, name: str,
                            price: Optional[int] = None,
                            media_ids: Optional[List[str]] = None,
                            description: Optional[str] = None,
                            characteristic: Optional[str] = None) -> bool:
         message = TasteAddDishMessage(
+            id=id,
             userId=user_id,
             merchantID=merchant_id,
             name=name,
