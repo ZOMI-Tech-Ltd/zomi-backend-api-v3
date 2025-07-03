@@ -105,7 +105,11 @@ class DishOverviewSchema(ma.Schema):
         }
 
     def get_ingredients(self, obj):
-        return getattr(obj, '_ingredients_data', [])
+        tags = getattr(obj, '_ingredients_data', [])
+        if not tags:
+            return []
+        
+        return [tag['text'] for tag in tags]
     
 
     def get_ai_flavor_tags(self, obj):

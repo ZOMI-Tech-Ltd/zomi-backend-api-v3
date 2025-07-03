@@ -69,10 +69,11 @@ class DishService:
 
                 dish._ai_flavor_tags  = [tag for tag in formatted_tags
                                         if tag['category'] in ['basic_flavor', 'detail_flavor', 'texture']]
-                dish._ingredients_data = [tag for tag in formatted_tags
-                                        if tag['category'] in ['basic_flavor', 'detail_flavor', 'texture']]
+                
                 dish._ai_unique_tags  = [tag['tag'] for tag in formatted_tags
                                          if tag['category'] == ['texture', 'combined_texture', 'cuisine']]
+                
+                dish._ingredients_data = dish._ai_flavor_tags
             else:
                 dish._ai_flavor_tags = []
                 dish._ai_unique_tags = []
