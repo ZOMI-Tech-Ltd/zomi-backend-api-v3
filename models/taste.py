@@ -43,7 +43,7 @@ class Taste(db.Model):
     isVerified= db.Column(db.Boolean, nullable = False, default  = False)
     recommendState = db.Column(db.Integer, nullable=False, default = 1)
     usefulTotal = db.Column(db.Integer, nullable=False, default = 0)
-    flow_document = db.Column(db.JSON, default = {"from taste model":"from taste model"})
+    
     tags = db.Column(db.JSON)
     mediaIds = db.Column(db.JSON)
     userId = db.Column(db.String(50), db.ForeignKey('users._id'), nullable=False)
@@ -52,11 +52,13 @@ class Taste(db.Model):
     createdAt = db.Column(db.DateTime, default = datetime.utcnow)
     updatedAt = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
     deletedAt = db.Column(db.DateTime, nullable=True)
+
+    
     flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
    
-    __v = db.Column('__v', db.Integer, nullable=False, default=0) 
-    _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c') 
-
+    __v = db.Column('__v', db.Integer, nullable=True) 
+    _meta_op = db.Column('_meta/op', db.String, nullable=True) 
+    flow_document = db.Column(db.JSON, nullable=True)
 
 
     user_relation = db.relationship('User', back_populates='taste', lazy=True)

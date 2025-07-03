@@ -136,14 +136,12 @@ class UserActionService:
                           isVerified = False,
                           recommendState = TasteRecommendState.YES,
                           usefulTotal = 0,
-                          flow_document = {"Source":"Quick Recommendation"},
                           mediaIds = [],
                           mood = 1,
                           state = 1,
                           createdAt = datetime.utcnow(),
                           updatedAt = datetime.utcnow(),
-                          flow_published_at = datetime.utcnow(),
-                          _meta_op = 'c'
+                          
                           )
         
             db.session.add(new_taste)
