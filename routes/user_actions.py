@@ -305,7 +305,7 @@ def unlike_taste(taste_id):
 
 # Add this new route for UGC dish creation
 @user_actions_bp.route('/dish/add', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def add_dish_ugc():
 
     current_user_id = get_current_user_id()

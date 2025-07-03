@@ -37,7 +37,7 @@ def get_current_user_id():
 
 
 @dish_management_bp.route('/create', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def create_dish():
     """
     Create a new dish
@@ -90,7 +90,7 @@ def create_dish():
 
 
 @dish_management_bp.route('/<string:dish_id>', methods=['PUT'])
-@jwt_required()
+@jwt_required(optional=True)
 def update_dish(dish_id):
     """
     Update an existing dish
@@ -143,7 +143,7 @@ def update_dish(dish_id):
 
 
 @dish_management_bp.route('/<string:dish_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required(optional=True)
 def delete_dish(dish_id):
     """
     Soft delete a single dish
