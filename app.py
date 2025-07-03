@@ -18,7 +18,7 @@ from utils.response_utils import create_response
 
 from models.thirdparty import ThirdPartyDelivery
 from routes.media import media_bp
-
+from routes.aws import aws_bp
 
 def create_app():
     app = Flask(__name__)
@@ -29,6 +29,7 @@ def create_app():
     app.register_blueprint(dish_bp)
     app.register_blueprint(user_actions_bp)
     app.register_blueprint(media_bp)
+    app.register_blueprint(aws_bp)
 
 
     @app.errorhandler(404)

@@ -19,24 +19,9 @@ import warnings
 from services.rabbitmq_service import RabbitMQService
 from mq.enums import *
 from bson import ObjectId
+from services.aws import AWSService
 
 logger = logging.getLogger(__name__)
-
-#default configs
-MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
-MAX_WORKERS = 8
-BATCH_SIZE = 128
-CLOUDFRONT_PREFIX = os.getenv('CLOUDFRONT_URL', 'https://d2alght3o41s9j.cloudfront.net/')
-AWS_BUCKET = os.getenv('AWS_BUCKET_NAME')
-AWS_REGION = os.getenv('AWS_REGION', 'us-west-1')
-
-
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
-    aws_secret_access_key=os.getenv('AWS_SECRET_KEY'),
-    region_name=AWS_REGION
-)
 
 
 class MediaService:
@@ -79,191 +64,26 @@ class MediaService:
             return False
 
     @staticmethod
-    def generate_blurhash_from_image(image: Image.Image) -> str:
-        try:
-            # Ensure we have a PIL Image object
-
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Resize for blurhash
-            max_size = (128, 128)
-            if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
-                image.thumbnail(max_size, Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
-            
-            
-            # Generate blurhash
-            x_components = 4
-            y_components = 3
-            blurhash = encode(image, x_components, y_components)
-            
-
-
-            return blurhash
-        except Exception as e:
-            logger.error(f"Error generating blurhash: {str(e)}")
-            return None
-    
-    @staticmethod
-    def generate_blurhash_from_url(image_url: str, max_retries: int = 3) -> tuple:
-        retries = 0
-        while retries < max_retries:
-            try:
-                response = requests.get(image_url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-
-                if response.status_code == 200:
-                    image = Image.open(BytesIO(response.content)).convert("RGB")
-                    blurhash = MediaService.generate_blurhash_from_image(image)
-                    return blurhash, image
-                
-
-                else:
-                    logger.warning(f"HTTP error: {response.status_code} for URL {image_url}")
-
-            except (requests.RequestException, UnidentifiedImageError) as e:
-                logger.error(f"Error fetching or processing image from URL {image_url}: {e}")
-            
-            retries += 1
-            if retries < max_retries:
-                logger.info(f"Retrying... ({retries}/{max_retries})")
+    def add_media(user_id: str, 
+                  url: str,
+                   media_type: str, 
+                   width: int, 
+                   height: int, 
+                   blur_hash: str, 
+                   source: str) -> dict:
         
-        logger.error(f"Failed to process image after {max_retries} retries.")
-        return None, None
-    
-    @staticmethod
-    def compress_image(data: bytes) -> bytes:
-
         try:
-            image = Image.open(BytesIO(data))
-            
-            
-            if image.mode in ('RGBA', 'P'):
-                image = image.convert('RGB')
-            
-            quality = 85
-            buf = BytesIO()
-            image.save(buf, format='JPEG', quality=quality)
-            out = buf.getvalue()
-            
-            #reduce quality
-            while len(out) > MAX_FILE_SIZE and quality > 10:
-                quality -= 5
-                buf = BytesIO()
-                image.save(buf, format='JPEG', quality=quality)
-                out = buf.getvalue()
-            
-            return out
-        except Exception as e:
-            logger.error(f"Error compressing image: {str(e)}")
-            raise
-    
-    @staticmethod
-    def upload_to_s3(file_data: bytes, content_type: str = 'image/jpeg') -> str:
-        try:
-            #unique key
-            key = f"zomi-dishes/{datetime.now().strftime('%Y%m%d')}/{ObjectId()}.jpeg"
-            
-            #upload
-            s3_client.upload_fileobj(
-                BytesIO(file_data),
-                AWS_BUCKET,
-                key,
-                ExtraArgs={'ContentType': content_type}
-            )
-            
-            #cloudfront url
-            return f"{CLOUDFRONT_PREFIX}{key}"
-        except Exception as e:
-            logger.error(f"Error uploading to S3: {str(e)}")
-            raise
-    
-    @staticmethod
-    def process_image_data(data: bytes) -> dict:
-        try:
-            # Validate image data
-            if not data:
-                raise ValueError("Empty image data")
-            
-            # Create BytesIO object and ensure position is at start
-            img_buffer = BytesIO(data)
-            img_buffer.seek(0)
-            
-            # Try to open image
-            try:
-                img = Image.open(img_buffer)
-                # Verify image is valid by loading it
-                img.verify()
-                
-                # Need to reopen after verify
-                img_buffer.seek(0)
-                img = Image.open(img_buffer)
-            except (UnidentifiedImageError, IOError) as e:
-                logger.error(f"Invalid image format: {str(e)}")
-                raise ValueError(f"Invalid image format: {str(e)}")
-            
-            # Get original format
-            original_format = img.format or 'JPEG'
-            
-            # Get dimensions
-            width, height = img.size
-            
-            # Convert to RGB if necessary (for blurhash and JPEG save)
-            if img.mode not in ('RGB', 'L'):
-                img = img.convert('RGB')
-            
-            # Check if compression is needed
-            if len(data) > MAX_FILE_SIZE:
-                warnings.warn(f"Image too large ({len(data)} bytes), compressing...", stacklevel=2)
-                # Compress image
-                output_buffer = BytesIO()
-                img.save(output_buffer, format='JPEG', quality=85, optimize=True)
-                data = output_buffer.getvalue()
-            
-            # Generate blurhash
-            blurhash = MediaService.generate_blurhash_from_image(img)
-            
-            return {
-                'data': data,
-                'width': width,
-                'height': height,
-                'blur_hash': blurhash,
-                'file_size': len(data),
-                'format': original_format
-            }
-        except Exception as e:
-            logger.error(f"Error processing image: {str(e)}")
-            raise
-
-
-    @staticmethod
-    def upload_media(file: FileStorage, user_id: str, media_type: str = 'image', source = str) -> dict:
-        try:
-            #read file
-            file_data = file.read()
-            filename = file.filename
-            
-            #process
-            processed = MediaService.process_image_data(file_data)
-            
-            #upload
-            url = MediaService.upload_to_s3(processed['data'])
-            
-            print(url)
-            #media record
             media = Media(
                 _id=str(ObjectId()),
                 url=url,
-                source = source,
-                width=processed['width'],
-                height=processed['height'],
-                blur_hash=processed['blur_hash'],
-                file_size=processed['file_size'],
-                userId=user_id,
-                media_type = media_type.upper(),
-                blurHashAt = datetime.utcnow()
-
+                media_type=media_type,
+                width=width,    
+                height=height,
+                blurHash=blur_hash,
+                source=source,
+                userId=user_id, 
+                blurHashAt=datetime.utcnow()
             )
-            
             db.session.add(media)
             db.session.flush()
             
@@ -271,25 +91,228 @@ class MediaService:
 
             db.session.commit()
 
-
             return create_response(
                 code=0,
-                data={
-                    '_id': media._id,
-                    'pg_id':media.pg_id,
-                    'url': media.url,
-                    'media_type': media.media_type,
-                    'width': media.width,
-                    'height': media.height,
-                    'blur_hash': media.blurHash
-                },
-                message="Media uploaded successfully"
+                data=media.to_dict(include_meta=True),
+                message="Media added successfully"
             )
-            
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error uploading media: {str(e)}")
-            return create_response(code=500, message=f"Failed to upload media: {str(e)}")
+            logger.error(f"Error adding media: {str(e)}")
+            return create_response(code=200, message=f"Failed to add media: {str(e)}")
+
+    # @staticmethod
+    # def generate_blurhash_from_image(image: Image.Image) -> str:
+    #     try:
+    #         # Ensure we have a PIL Image object
+
+    #         if image.mode != 'RGB':
+    #             image = image.convert('RGB')
+            
+    #         # Resize for blurhash
+    #         max_size = (128, 128)
+    #         if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
+    #             image.thumbnail(max_size, Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
+            
+            
+    #         # Generate blurhash
+    #         x_components = 4
+    #         y_components = 3
+    #         blurhash = encode(image, x_components, y_components)
+            
+
+
+    #         return blurhash
+    #     except Exception as e:
+    #         logger.error(f"Error generating blurhash: {str(e)}")
+    #         return None
+    
+    # @staticmethod
+    # def generate_blurhash_from_url(image_url: str, max_retries: int = 3) -> tuple:
+    #     retries = 0
+    #     while retries < max_retries:
+    #         try:
+    #             response = requests.get(image_url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+
+    #             if response.status_code == 200:
+    #                 image = Image.open(BytesIO(response.content)).convert("RGB")
+    #                 blurhash = MediaService.generate_blurhash_from_image(image)
+    #                 return blurhash, image
+                
+
+    #             else:
+    #                 logger.warning(f"HTTP error: {response.status_code} for URL {image_url}")
+
+    #         except (requests.RequestException, UnidentifiedImageError) as e:
+    #             logger.error(f"Error fetching or processing image from URL {image_url}: {e}")
+            
+    #         retries += 1
+    #         if retries < max_retries:
+    #             logger.info(f"Retrying... ({retries}/{max_retries})")
+        
+    #     logger.error(f"Failed to process image after {max_retries} retries.")
+    #     return None, None
+    
+    # @staticmethod
+    # def compress_image(data: bytes) -> bytes:
+
+    #     try:
+    #         image = Image.open(BytesIO(data))
+            
+            
+    #         if image.mode in ('RGBA', 'P'):
+    #             image = image.convert('RGB')
+            
+    #         quality = 85
+    #         buf = BytesIO()
+    #         image.save(buf, format='JPEG', quality=quality)
+    #         out = buf.getvalue()
+            
+    #         #reduce quality
+    #         while len(out) > MAX_FILE_SIZE and quality > 10:
+    #             quality -= 5
+    #             buf = BytesIO()
+    #             image.save(buf, format='JPEG', quality=quality)
+    #             out = buf.getvalue()
+            
+    #         return out
+    #     except Exception as e:
+    #         logger.error(f"Error compressing image: {str(e)}")
+    #         raise
+    
+    # @staticmethod
+    # def upload_to_s3(file_data: bytes, content_type: str = 'image/jpeg') -> str:
+    #     try:
+    #         #unique key
+    #         key = f"zomi-dishes/{datetime.now().strftime('%Y%m%d')}/{ObjectId()}.jpeg"
+            
+    #         #upload
+    #         s3_client.upload_fileobj(
+    #             BytesIO(file_data),
+    #             AWS_BUCKET,
+    #             key,
+    #             ExtraArgs={'ContentType': content_type}
+    #         )
+            
+    #         #cloudfront url
+    #         return f"{CLOUDFRONT_PREFIX}{key}"
+    #     except Exception as e:
+    #         logger.error(f"Error uploading to S3: {str(e)}")
+    #         raise
+    
+    # @staticmethod
+    # def process_image_data(data: bytes) -> dict:
+    #     try:
+    #         # Validate image data
+    #         if not data:
+    #             raise ValueError("Empty image data")
+            
+    #         # Create BytesIO object and ensure position is at start
+    #         img_buffer = BytesIO(data)
+    #         img_buffer.seek(0)
+            
+    #         # Try to open image
+    #         try:
+    #             img = Image.open(img_buffer)
+    #             # Verify image is valid by loading it
+    #             img.verify()
+                
+    #             # Need to reopen after verify
+    #             img_buffer.seek(0)
+    #             img = Image.open(img_buffer)
+    #         except (UnidentifiedImageError, IOError) as e:
+    #             logger.error(f"Invalid image format: {str(e)}")
+    #             raise ValueError(f"Invalid image format: {str(e)}")
+            
+    #         # Get original format
+    #         original_format = img.format or 'JPEG'
+            
+    #         # Get dimensions
+    #         width, height = img.size
+            
+    #         # Convert to RGB if necessary (for blurhash and JPEG save)
+    #         if img.mode not in ('RGB', 'L'):
+    #             img = img.convert('RGB')
+            
+    #         # Check if compression is needed
+    #         if len(data) > MAX_FILE_SIZE:
+    #             warnings.warn(f"Image too large ({len(data)} bytes), compressing...", stacklevel=2)
+    #             # Compress image
+    #             output_buffer = BytesIO()
+    #             img.save(output_buffer, format='JPEG', quality=85, optimize=True)
+    #             data = output_buffer.getvalue()
+            
+    #         # Generate blurhash
+    #         blurhash = MediaService.generate_blurhash_from_image(img)
+            
+    #         return {
+    #             'data': data,
+    #             'width': width,
+    #             'height': height,
+    #             'blur_hash': blurhash,
+    #             'file_size': len(data),
+    #             'format': original_format
+    #         }
+    #     except Exception as e:
+    #         logger.error(f"Error processing image: {str(e)}")
+    #         raise
+
+
+    # @staticmethod
+    # def upload_media(file: FileStorage, user_id: str, media_type: str = 'image', source = str) -> dict:
+    #     try:
+    #         #read file
+    #         file_data = file.read()
+    #         filename = file.filename
+            
+    #         #process
+    #         processed = MediaService.process_image_data(file_data)
+            
+    #         #upload
+    #         url = MediaService.upload_to_s3(processed['data'])
+            
+    #         print(url)
+    #         #media record
+    #         media = Media(
+    #             _id=str(ObjectId()),
+    #             url=url,
+    #             source = source,
+    #             width=processed['width'],
+    #             height=processed['height'],
+    #             blur_hash=processed['blur_hash'],
+    #             file_size=processed['file_size'],
+    #             userId=user_id,
+    #             media_type = media_type.upper(),
+    #             blurHashAt = datetime.utcnow()
+
+    #         )
+            
+    #         db.session.add(media)
+    #         db.session.flush()
+            
+    #         MediaService._send_media_create_event(media)
+
+    #         db.session.commit()
+
+
+    #         return create_response(
+    #             code=0,
+    #             data={
+    #                 '_id': media._id,
+    #                 'pg_id':media.pg_id,
+    #                 'url': media.url,
+    #                 'media_type': media.media_type,
+    #                 'width': media.width,
+    #                 'height': media.height,
+    #                 'blur_hash': media.blurHash
+    #             },
+    #             message="Media uploaded successfully"
+    #         )
+            
+    #     except Exception as e:
+    #         db.session.rollback()
+    #         logger.error(f"Error uploading media: {str(e)}")
+    #         return create_response(code=500, message=f"Failed to upload media: {str(e)}")
     
     # @staticmethod
     # def batch_upload_media(files: List[FileStorage], user_id: str) -> dict:
