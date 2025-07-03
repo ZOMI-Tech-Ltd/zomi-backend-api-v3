@@ -8,7 +8,7 @@ class DishOverviewSchema(ma.Schema):
 
     #basic info
     _id = ma.String(required=True)
-    title = ma.Str(required=True)
+    title = ma.Method('get_title', required=True)
     price = ma.Integer(required=True)
 
     #images
@@ -47,6 +47,13 @@ class DishOverviewSchema(ma.Schema):
 
 
 
+    def get_title(self, obj):
+        if hasattr(obj, 'display_title') and obj.display_title:
+            return obj.display_title
+        else:
+            return obj.title
+        
+        
 
 
     def get_image_data(self, obj):

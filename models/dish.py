@@ -9,6 +9,7 @@ class Dish(db.Model):
 
     _id = db.Column(db.String(100), primary_key=True)
     title = db.Column(db.String(100), nullable=False)
+    display_title = db.Column(db.String(100), nullable=True)
     media = db.Column('media',db.JSON, nullable=False)
     price = db.Column(db.Integer, nullable=False, default=0)
 
