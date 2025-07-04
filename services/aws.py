@@ -121,7 +121,6 @@ class AWSService:
                 Params={
                     'Bucket': cls.AWS_BUCKET,
                     'Key': object_key,
-                    'ContentType': content_type,
                     'ACL': 'public-read'
                 },
                 ExpiresIn=expires_in,
