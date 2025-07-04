@@ -329,10 +329,10 @@ def add_dish_ugc():
         user_id=current_user_id,
         merchant_id=data.get('merchantId'),
         name=data.get('name'),
-        price=data.get('price'),
-        media_ids=data.get('mediaIds'),
-        description=data.get('description'),
-        characteristic=data.get('characteristic')
+        price=data.get('price',0),
+        media_ids=data.get('mediaIds',[]),
+        description=data.get('description',''),
+        characteristic=data.get('characteristic','')
     )
     
 
