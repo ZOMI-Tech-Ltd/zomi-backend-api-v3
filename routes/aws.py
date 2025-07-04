@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 aws_bp = Blueprint('aws', __name__, url_prefix='/v3/aws')
 
 
-@aws_bp.route('/generatePresignedPutUrl', methods=['POST'])
+@aws_bp.route('/generatePresignedPutURL', methods=['POST'])
 @jwt_required(optional=True)
 def get_presigned_url():
     try:
