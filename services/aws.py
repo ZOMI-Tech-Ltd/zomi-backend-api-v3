@@ -6,6 +6,10 @@ from datetime import datetime
 from typing import Optional, Dict
 from utils.response_utils import create_response
 from uuid import uuid4
+import dotenv
+
+dotenv.load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 
