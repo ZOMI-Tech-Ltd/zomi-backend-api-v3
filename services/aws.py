@@ -68,6 +68,7 @@ class AWSService:
                     region_name=cls.AWS_REGION,
                     config=config
                 )
+
                 logger.info("S3 client initialized successfully with Signature V4")
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {str(e)}")
@@ -121,8 +122,8 @@ class AWSService:
                 Params={
                     'Bucket': cls.AWS_BUCKET,
                     'Key': object_key,
-                    'ContentType': content_type,
-                    'ACL': 'public-read'
+                    # 'ContentType': content_type,
+                    # 'ACL': 'public-read'
                 },
                 ExpiresIn=expires_in,
                 HttpMethod='PUT'
@@ -141,8 +142,9 @@ class AWSService:
                         "Host": [
                             f"{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com"
                         ],
-                        'Content-Type': [content_type],
-                        'X-Amz-Acl': ['public-read']
+                        'X-Amz-Acl': [
+                            "public-read"
+                        ]
                     },
                     'objectKey': object_key,
                     'cloudFrontUrl': cloudfront_url,
