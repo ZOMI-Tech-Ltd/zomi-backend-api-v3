@@ -25,7 +25,7 @@ def get_current_user_id():
                 return str(current_user_id)
             else:
                 current_user_id = request.args.get('userId')
-                return current_user_id
+                return str(current_user_id)
     except Exception as e:
         print(f"JWT token validation failed: {e}")
     
