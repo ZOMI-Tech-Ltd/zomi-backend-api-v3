@@ -127,7 +127,7 @@ class RabbitMQService:
             userId=user_id,
             dishId=dish_id,
             comment=comment,
-            recommendState=recommend_state.value,
+            recommendState= recommend_state.value,
             mediaIds=media_ids
         )
         

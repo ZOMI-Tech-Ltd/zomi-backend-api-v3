@@ -78,7 +78,7 @@ def create_many_tastes():
         return create_response(code=200, message="User authentication required"), 200
 
     #iterate over items in request body
-    items = request.get_json()['items']
+    items = request.get_json().get('items',[])
 
     results = []
     for item in items:
@@ -91,7 +91,7 @@ def create_many_tastes():
             tags=item.get('tags',[]),
         )
         results.append(result)
-
+    print(results)
     if all(result['code'] == 0 for result in results):
         return create_response(code=0, data=results, message="Taste created successfully"), 200
     else:
@@ -137,7 +137,7 @@ def edit_taste(taste_id):
     
     # Get request data
     data = request.get_json()
-    
+    print(data.get('dishId',""))
     # Validate request data
     if not data:
         return create_response(code=200, message="Request body is required"), 200
@@ -149,7 +149,9 @@ def edit_taste(taste_id):
         comment=data.get('comment',""),
         media_ids=data.get('mediaIds', []),
         mood=data.get('mood', 0),
-        tags=data.get('tags', [])
+        tags=data.get('tags', []),
+        taste_id=taste_id,
+        recommend_state=data.get('recommendState', 1)
     )
     
     if result['code'] == 0:
@@ -305,7 +307,7 @@ def unlike_taste(taste_id):
 
 
 # Add this new route for UGC dish creation
-@user_actions_bp.route('/dish/add', methods=['POST'])
+@user_actions_bp.route('/taste/addDish', methods=['POST'])
 @jwt_required(optional=True)
 def add_dish_ugc():
 

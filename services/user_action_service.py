@@ -383,14 +383,17 @@ class UserActionService:
         
     
     @staticmethod
-    def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=1):
+    def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=1, taste_id=None):
         try:
             # Find the taste
             taste = Taste.active_tastes().filter_by(
+                _id=taste_id,
                 dishId=dish_id,
                 userId=user_id
             ).first()
             
+            print(taste)
+
             if not taste:
                 return create_response(code=404, message="Taste not found or you don't have permission to edit")
             
@@ -401,8 +404,17 @@ class UserActionService:
             if recommend_state is not None:
                 if recommend_state not in [0, 1, 2]:
                     return create_response(code=400, message="Invalid recommend state")
-                taste.recommendState = recommend_state
+                else:
+                    if recommend_state == 0:
+                        recommendState = RecommendState.DEFAULT
+                    elif recommend_state == 1:
+                        recommendState = RecommendState.RECOMMEND
+                    elif recommend_state == 2:
+                        recommendState = RecommendState.NOT_RECOMMEND
             
+
+            taste.recommendState = recommendState.value
+
             if media_ids is not None:
                 #check if media ids exist in media table
                 media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
@@ -429,6 +441,16 @@ class UserActionService:
             
             # Commit changes
             db.session.commit()
+
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            rabbitmq.send_taste_create(
+                taste_id=taste._id,
+                user_id=taste.userId,
+                dish_id=taste.dishId,
+                comment=taste.comment,
+                recommend_state=recommendState,
+                media_ids=taste.mediaIds
+            )   
 
             # Update dish statistics if recommendation state changed
             if recommend_state is not None:
@@ -560,81 +582,79 @@ class UserActionService:
             if existing_taste:
                 return create_response(code=409, message="Already recommended", data=None)
         
-            taste = Taste(
-                userId=user_id,
-                dishId=dish_id,
-                comment=comment,
-                recommendState=recommend_state,
-                mediaIds=media_ids,
-                mood=mood,
-                tags=tags,
-                flow_document = {"Source":"UGC Flow"}
-            )
-            # Update fields if provided
-            if comment is not None:
-                taste.comment = comment
+            else:
+                taste = Taste(
+                    userId=user_id,
+                    dishId=dish_id,
+                    comment=comment,
+                    recommendState=recommend_state,
+                    mediaIds=media_ids,
+                    mood=mood,
+                    tags=tags,
+                    flow_document = {"Source":"UGC Flow"}
+                )
+                # Update fields if provided
+                if comment is not None:
+                    taste.comment = comment
+                
+                if recommend_state is not None:
+                    if recommend_state not in [0, 1, 2]:
+                        return create_response(code=0, message="Invalid recommend state")
+                    taste.recommendState = recommend_state
+                
+                if media_ids:
+                    valid_media_ids = []
+                    for media_id in media_ids:
+                        if Media.query.filter_by(_id=media_id).first():
+                            valid_media_ids.append(media_id)
+                    if len(valid_media_ids) != len(media_ids):
+                        return create_response(code=0, message="Invalid media ids")   
+                    taste.mediaIds = valid_media_ids
+                
+                if mood is not None:
+                    if mood not in [0, 1, 2, 3]:
+                        return create_response(code=0, message="Invalid mood value")
+                    taste.mood = mood
+                
+                
+                taste.tags= tags or []
             
-            if recommend_state is not None:
-                if recommend_state not in [0, 1, 2]:
-                    return create_response(code=0, message="Invalid recommend state")
-                taste.recommendState = recommend_state
-            
-            if media_ids:
-                valid_media_ids = []
-                for media_id in media_ids:
-                    if Media.query.filter_by(_id=media_id).first():
-                        valid_media_ids.append(media_id)
-                if len(valid_media_ids) != len(media_ids):
-                    return create_response(code=0, message="Invalid media ids")   
-                taste.mediaIds = valid_media_ids
+                # Update verification status since content changed
+                taste.isVerified = False
+                
+                # Recalculate state based on new values
+                taste.state = taste.calculate_state()
+                
+                # Update timestamp
+                taste.updatedAt = datetime.utcnow()
+                
+                # Commit changes
+                db.session.add(taste)
+                db.session.commit()
+
+                UserActionService._update_dish_recommend_count(taste._id)
 
 
-            
-            if mood is not None:
-                if mood not in [0, 1, 2, 3]:
-                    return create_response(code=0, message="Invalid mood value")
-                taste.mood = mood
-            
-            
-            
-            taste.tags= tags or []
-        
-            # Update verification status since content changed
-            taste.isVerified = False
-            
-            # Recalculate state based on new values
-            taste.state = taste.calculate_state()
-            
-            # Update timestamp
-            taste.updatedAt = datetime.utcnow()
-            
-            # Commit changes
-            db.session.add(taste)
-            db.session.commit()
-
-            UserActionService._update_dish_recommend_count(taste._id)
+                rabbitmq = UserActionService._get_rabbitmq_service()
+                rabbitmq.send_taste_create(
+                    taste_id=taste._id,
+                    user_id=taste.userId,
+                    dish_id=taste.dishId,
+                    comment=taste.comment,
+                    recommend_state=RecommendState.RECOMMEND,
+                    media_ids=taste.mediaIds
+                )
 
 
-            rabbitmq = UserActionService._get_rabbitmq_service()
-            rabbitmq.send_taste_create(
-                taste_id=taste._id,
-                user_id=user_id,
-                dish_id=dish_id,
-                comment=comment,
-                recommend_state=taste.recommendState,
-                media_ids=media_ids
-            )
-
-
-            return create_response(
-                code=0, 
-                data={
-                    "id": taste._id,
-                    "state": taste.state,
-                    "recommendState": taste.recommendState
-                },
-                message="Taste created successfully"
-            )
+                return create_response(
+                    code=0, 
+                    data={
+                        "id": taste._id,
+                        "state": taste.state,
+                        "recommendState": taste.recommendState
+                    },
+                    message="Taste created successfully"
+                )
             
         except Exception as e:
             db.session.rollback()
@@ -648,29 +668,30 @@ class UserActionService:
             userId=user_id
         ).first()
 
+    
         if not taste:
-            return create_response(code=0, message="Taste not found")
+            return create_response(code=200, message="Taste not found")
 
-        taste.soft_delete()
-        taste.recommendState = RecommendState.NOT_RECOMMEND
-        taste.state = taste.calculate_state()
+        else:
+            rabbitmq = UserActionService._get_rabbitmq_service()
+            rabbitmq.send_taste_create(
+                    taste_id=taste._id,
+                    user_id=taste.userId,
+                    dish_id=taste.dishId,
+                    comment=taste.comment,
+                    recommend_state=RecommendState.NOT_RECOMMEND,
+                    media_ids=taste.mediaIds
+                )
 
-        # rabbitmq = UserActionService._get_rabbitmq_service()
-        # rabbitmq.send_taste_create(
-        #     taste_id=taste._id,
-        #     user_id=user_id,
-        #     dish_id=taste.dishId,
-        #     comment=taste.comment,
-        #     recommend_state=taste.recommendState,
-        #     media_ids=taste.mediaIds
-        # )
+            taste.soft_delete()
+            UserActionService._update_dish_recommend_count(taste.dishId)
 
 
-        UserActionService._update_dish_recommend_count(taste.dishId)
+            taste.recommendState = RecommendState.NOT_RECOMMEND.value
+            taste.state = taste.calculate_state()
 
-        
-        db.session.commit()
-        return create_response(code=0, message="Taste deleted successfully")
+            db.session.commit()
+            return create_response(code=0, message="Taste deleted successfully")
 
     @staticmethod
     def create_dish_ugc(user_id, merchant_id, name, price=None, media_ids=None, 
