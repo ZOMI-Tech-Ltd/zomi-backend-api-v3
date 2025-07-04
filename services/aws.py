@@ -134,7 +134,9 @@ class AWSService:
             s3_url = f"https://{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com/{object_key}"
             
             logger.info(presigned_url)
+            logger.info(cloudfront_url)
 
+            
             return create_response(
                 code=0,
                 data={
