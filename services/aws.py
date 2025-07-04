@@ -122,8 +122,8 @@ class AWSService:
                 Params={
                     'Bucket': cls.AWS_BUCKET,
                     'Key': object_key,
-                    # 'ContentType': content_type,
-                    # 'ACL': 'public-read'
+                    'ContentType': content_type,
+                    'ACL': 'public-read'
                 },
                 ExpiresIn=expires_in,
                 HttpMethod='PUT'
@@ -136,7 +136,7 @@ class AWSService:
             logger.info(presigned_url)
             logger.info(cloudfront_url)
 
-            
+
             return create_response(
                 code=0,
                 data={
