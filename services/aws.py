@@ -133,6 +133,7 @@ class AWSService:
             cloudfront_url = f"{cls.CLOUDFRONT_URL}{object_key}"
             s3_url = f"https://{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com/{object_key}"
             
+            print(presigned_url)
 
             return create_response(
                 code=0,
