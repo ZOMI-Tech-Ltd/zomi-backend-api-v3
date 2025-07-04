@@ -27,7 +27,7 @@ class Media(db.Model):
     height = db.Column(db.JSON, nullable=True)
     fileSize = db.Column("filesize", nullable=True)
     blurHash = db.Column("blurHash", nullable=True)
-    media_type = db.Column("media_type", nullable=True, default = "IMAGE")
+    media_type = db.Column("type", nullable=True, default = "IMAGE")
     source = db.Column("source", nullable=True)
     tags = db.Column("tags", nullable=True)
     video_id = db.Column("vid", nullable=True)
