@@ -21,7 +21,7 @@ class AWSService:
     """
     
     _s3_client = None
-    AWS_REGION = os.getenv('AWS_REGION', 'us-west-1')
+    AWS_REGION = os.getenv('AWS_REGION', 'us-west-2')
     AWS_BUCKET = os.getenv('AWS_BUCKET_NAME')
     AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
     AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
@@ -116,14 +116,13 @@ class AWSService:
 
             expires_in = 3600
             
-            # Generate presigned URL
             presigned_url = s3_client.generate_presigned_url(
                 'put_object',
                 Params={
                     'Bucket': cls.AWS_BUCKET,
                     'Key': object_key,
-                    # 'ContentType': content_type,
-                    # 'ACL': 'public-read'
+                    'ContentType': 'octet-stream',
+                    'ACL': 'public-read'
                 },
                 ExpiresIn=expires_in,
                 HttpMethod='PUT'
@@ -137,13 +136,15 @@ class AWSService:
             logger.info(cloudfront_url)
 
             
+            correct_host = f"{cls.AWS_BUCKET}.s3.amazonaws.com"
+            
             return create_response(
                 code=0,
                 data={
                     'signedUrl': presigned_url,
                     'signedHeaders': {
                         "Host": [
-                            f"{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com"
+                            correct_host
                         ],
                         'X-Amz-Acl': [
                             "public-read"
