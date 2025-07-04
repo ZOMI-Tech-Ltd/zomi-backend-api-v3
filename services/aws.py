@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Dict
 from utils.response_utils import create_response
-from bson import ObjectId
+from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +24,6 @@ class AWSService:
 
     CONTENT_TYPE_TO_EXTENSION = {
         'image/jpeg': '.jpg',
-        'image/jpg': '.jpg',
         'image/png': '.png',
         'image/gif': '.gif',
         'image/webp': '.webp',
@@ -93,7 +92,7 @@ class AWSService:
 
 
             date_str = datetime.now().strftime('%Y%m%d')
-            oid = str(ObjectId())
+            oid = str(uuid4())
             object_key = f"zomi-dishes/{date_str}/{oid}{extension}"
             
 
