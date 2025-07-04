@@ -121,8 +121,8 @@ class AWSService:
                 data={
                     'signedUrl': presigned_url,
                     'signedHeaders': {
-                        'Content-Type': content_type,
-                        'x-amz-acl': 'public-read'
+                        'Content-Type': [content_type],
+                        'x-amz-acl': ['public-read']
                     },
                     'objectKey': object_key,
                     'cloudFrontUrl': cloudfront_url,
