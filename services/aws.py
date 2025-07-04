@@ -7,7 +7,7 @@ from typing import Optional, Dict
 from utils.response_utils import create_response
 from uuid import uuid4
 import dotenv
-
+import pytz
 dotenv.load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ class AWSService:
             
 
 
-            date_str = datetime.now().strftime('%Y%m%d')
+            date_str = datetime.now(pytz.timezone('America/Vancouver')).strftime('%Y%m%d')
             oid = str(uuid4())
             object_key = f"zomi-dishes/{date_str}/{oid}{extension}"
             
