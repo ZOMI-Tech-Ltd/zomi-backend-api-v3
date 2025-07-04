@@ -92,7 +92,7 @@ class AWSService:
 
 
             date_str = datetime.now().strftime('%Y%m%d')
-            oid = str(uuid4())
+            oid = str(uuid4()).replace('-', '')
             object_key = f"zomi-dishes/{date_str}/{oid}{extension}"
             
 
