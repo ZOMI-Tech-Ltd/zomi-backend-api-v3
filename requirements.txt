@@ -9,3 +9,6 @@ python-dotenv
 gunicorn
 marshmallow
 SQLAlchemy
+pytz
+pika
+boto3
