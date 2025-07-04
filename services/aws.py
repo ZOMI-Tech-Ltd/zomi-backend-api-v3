@@ -8,6 +8,8 @@ from utils.response_utils import create_response
 from uuid import uuid4
 import dotenv
 import pytz
+from botocore.config import Config
+
 dotenv.load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -49,13 +51,24 @@ class AWSService:
         """
         if cls._s3_client is None:
             try:
+                
+                config = Config(
+                    region_name=cls.AWS_REGION,
+                    signature_version='s3v4', 
+                    retries={
+                        'max_attempts': 3,
+                        'mode': 'standard'
+                    }
+                )
+                
                 cls._s3_client = boto3.client(
                     's3',
                     aws_access_key_id=cls.AWS_ACCESS_KEY,
                     aws_secret_access_key=cls.AWS_SECRET_KEY,
-                    region_name=cls.AWS_REGION
+                    region_name=cls.AWS_REGION,
+                    config=config
                 )
-                logger.info("S3 client initialized successfully")
+                logger.info("S3 client initialized successfully with Signature V4")
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {str(e)}")
                 raise
@@ -111,7 +124,8 @@ class AWSService:
                     'ContentType': content_type,
                     'ACL': 'public-read'
                 },
-                ExpiresIn=expires_in
+                ExpiresIn=expires_in,
+                HttpMethod='PUT'
             )
             
             # Construct URLs
@@ -124,7 +138,9 @@ class AWSService:
                 data={
                     'signedUrl': presigned_url,
                     'signedHeaders': {
-                        "Host": [f"{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com"],
+                        "Host": [
+                            f"{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com"
+                        ],
                         'Content-Type': [content_type],
                         'X-Amz-Acl': ['public-read']
                     },
