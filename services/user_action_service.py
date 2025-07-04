@@ -341,7 +341,7 @@ class UserActionService:
                 updatedAt=datetime.utcnow(),
                 flow_published_at=datetime.utcnow(),
                 flow_document = {"Source":"Like taste by user"},
-                state = 1
+                # state = 1
             )
 
             db.session.add(new_like)

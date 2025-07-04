@@ -30,7 +30,7 @@ class Like(db.Model):
     user_relation = db.relationship('User', back_populates = 'user_likes', lazy = True)
     
     #state
-    state = db.Column(db.Integer, nullable=False, default=0)
+    # state = db.Column(db.Integer, nullable=False, default=0)
 
     #soft delete
     deletedAt = db.Column(db.DateTime, nullable=True)

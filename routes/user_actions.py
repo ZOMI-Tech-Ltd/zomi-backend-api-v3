@@ -310,8 +310,8 @@ def add_dish_ugc():
 
     current_user_id = get_current_user_id()
     
-    if not current_user_id:
-        return create_response(code=200, message="User authentication required"), 200
+    # if not current_user_id:
+    #     return create_response(code=200, message="User authentication required"), 200
     
     data = request.get_json()
     if not data:
