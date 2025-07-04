@@ -121,6 +121,7 @@ class AWSService:
                 data={
                     'signedUrl': presigned_url,
                     'signedHeaders': {
+                        "Host": [f"{cls.AWS_BUCKET}.s3.{cls.AWS_REGION}.amazonaws.com"],
                         'Content-Type': [content_type],
                         'X-Amz-Acl': ['public-read']
                     },
