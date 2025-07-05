@@ -8,8 +8,8 @@ class Collection(db.Model):
     _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()) )
     __v = db.Column('__v', db.Integer, nullable=False, default=0) 
     createdAt = db.Column(db.DateTime, default = datetime.utcnow)
-    flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
-
+    
+    
     object = db.Column(db.String(255), nullable=False)
     objectType = db.Column(db.String(255), nullable=False)
     
