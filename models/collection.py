@@ -7,7 +7,6 @@ class Collection(db.Model):
 
     _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()) )
     __v = db.Column('__v', db.Integer, nullable=False, default=0) 
-    _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c') 
     createdAt = db.Column(db.DateTime, default = datetime.utcnow)
     flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -22,7 +21,7 @@ class Collection(db.Model):
 
     user = db.Column('user' ,db.String(255), db.ForeignKey('users._id'), nullable=False)
 
-    flow_document = db.Column(db.JSON, default = {"test":"test"})
+
 
     #define relation
     user_relation = db.relationship('User', back_populates='collection', lazy=True)

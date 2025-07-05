@@ -11,19 +11,18 @@ class ThirdPartyDelivery(db.Model):
 
     _id = db.Column(db.String(50), primary_key=True)
     __v = db.Column('__v', db.Integer, nullable=False, default=0)
-    _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c')
+
 
 
     createdAt = db.Column(db.DateTime, default=datetime.utcnow)
     updatedAt = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    flow_published_at = db.Column(db.DateTime, nullable=True)
 
     icon = db.Column(db.String(500), nullable=True)
     name = db.Column(db.String(100), nullable=False)  
 
     redirect_url = db.Column('redirectUrl', db.String(500), nullable=True)
 
-    flow_document = db.Column(db.String(500), nullable=True)
+
 
 
     def __repr__(self):

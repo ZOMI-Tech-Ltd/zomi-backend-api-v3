@@ -1,8 +1,6 @@
 from extensions import db
 
 
-
-
 class User(db.Model):
     __tablename__ = 'users'
     _id = db.Column(db.String(50), primary_key = True)

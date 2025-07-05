@@ -47,7 +47,6 @@ class Dish(db.Model):
     createdAt = db.Column(db.DateTime, nullable=True, default=datetime.now)
     updatedAt = db.Column(db.DateTime, nullable=True, default=datetime.now)
     deletedAt = db.Column(db.DateTime, nullable=True)
-    _meta_op = db.Column("_meta/op", nullable=True, default="c")
     collectionCnt = db.Column("collectionCnt", nullable=True, default=0)
     commentCnt = db.Column("commentCnt", nullable=True, default=0)
     likeCnt = db.Column("likeCnt", nullable=True, default=0)
@@ -55,9 +54,6 @@ class Dish(db.Model):
 
 
 
-
-    flow_document = db.Column(db.JSON, default = {"from dish model":"from dish model"})
-    flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
 
     @staticmethod

@@ -57,10 +57,7 @@ class Taste(db.Model):
    
    
     __v = db.Column('__v', db.Integer, nullable=False, default = 0) 
-    _meta_op = db.Column('_meta/op', db.String, nullable=True) 
-    flow_document = db.Column(db.JSON, nullable=True)
-    flow_published_at = db.Column(db.DateTime, nullable=True)
-
+   
     user_relation = db.relationship('User', back_populates='taste', lazy=True)
 
 

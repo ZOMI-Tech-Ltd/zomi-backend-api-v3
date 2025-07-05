@@ -9,7 +9,6 @@ class Like(db.Model):
 
     _id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     __v = db.Column('__v', db.Integer, nullable=False, default=0)
-    _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c')
     
     # User who liked the taste
     user = db.Column(db.String(255), db.ForeignKey('users._id'), nullable=False)
@@ -21,10 +20,7 @@ class Like(db.Model):
     # Timestamps
     createdAt = db.Column(db.DateTime, default=datetime.utcnow)
     updatedAt = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    flow_published_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Flow document for additional metadata
-    flow_document = db.Column(db.JSON, default={"source": "like"})
+
     
     # Relationships
     user_relation = db.relationship('User', back_populates = 'user_likes', lazy = True)

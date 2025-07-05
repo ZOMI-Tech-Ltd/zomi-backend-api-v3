@@ -42,10 +42,7 @@ class Media(db.Model):
 
     fileSize = db.Column("fileSize", nullable=True, default = 0)
     __v = db.Column('__v', db.Integer, nullable=False, default=0)
-    _meta_op = db.Column('_meta/op', db.String, nullable=False, default='c') 
 
-    flow_document = db.Column(db.JSON, default = {"":""})
-    flow_published_at = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
 
     def __repr__(self):

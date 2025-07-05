@@ -141,7 +141,6 @@ class UserActionService:
                           state = 1,
                           createdAt = datetime.utcnow(),
                           updatedAt = datetime.utcnow(),
-                          
                           )
         
             db.session.add(new_taste)
@@ -251,8 +250,7 @@ class UserActionService:
         else:
             new_collection = Collection(user=user_id, 
                                         object=dish_id, 
-                                        objectType=UserActionService.OBJECT_TYPE_DISH,
-                                        flow_document = {"Source":"Collect dish by user"}
+                                        objectType=UserActionService.OBJECT_TYPE_DISH
                                         )
                                     
             db.session.add(new_collection)
@@ -339,8 +337,6 @@ class UserActionService:
                 objectType=UserActionService.OBJECT_TYPE_TASTE,
                 createdAt=datetime.utcnow(),
                 updatedAt=datetime.utcnow(),
-                flow_published_at=datetime.utcnow(),
-                flow_document = {"Source":"Like taste by user"},
                 # state = 1
             )
 
@@ -590,8 +586,7 @@ class UserActionService:
                     recommendState=recommend_state,
                     mediaIds=media_ids,
                     mood=mood,
-                    tags=tags,
-                    flow_document = {"Source":"UGC Flow"}
+                    tags=tags
                 )
                 # Update fields if provided
                 if comment is not None:
