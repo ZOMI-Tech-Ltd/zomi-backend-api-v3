@@ -127,7 +127,7 @@ def create_taste():
 
 
 
-@user_actions_bp.route('/taste/edit/<string:taste_id>', methods=['PUT'])
+@user_actions_bp.route('/taste/edit/<string:taste_id>', methods=['POST'])
 @jwt_required()
 def edit_taste(taste_id):
     current_user_id = get_current_user_id()
@@ -137,7 +137,7 @@ def edit_taste(taste_id):
     
     # Get request data
     data = request.get_json()
-    print(data.get('dishId',""))
+
     # Validate request data
     if not data:
         return create_response(code=200, message="Request body is required"), 200

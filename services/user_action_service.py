@@ -388,7 +388,6 @@ class UserActionService:
                 userId=user_id
             ).first()
             
-            print(taste)
 
             if not taste:
                 return create_response(code=404, message="Taste not found or you don't have permission to edit")
@@ -418,10 +417,12 @@ class UserActionService:
                     return create_response(code=400, message="Invalid media ids")   
                 taste.mediaIds = media_ids
             
+
             if mood is not None:
                 if mood not in [0, 1, 2, 3]:
                     return create_response(code=400, message="Invalid mood value")
                 taste.mood = mood
+            
             
             if tags is not None:
                 taste.tags = tags
