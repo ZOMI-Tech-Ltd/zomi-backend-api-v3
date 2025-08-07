@@ -12,3 +12,5 @@ SQLAlchemy
 pytz
 pika
 boto3
+pillow
+blurhash-python

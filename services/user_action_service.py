@@ -663,7 +663,7 @@ class UserActionService:
             _id=taste_id,
             userId=user_id
         ).first()
-
+        
     
         if not taste:
             return create_response(code=200, message="Taste not found")

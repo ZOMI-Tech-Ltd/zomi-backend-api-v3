@@ -101,12 +101,11 @@ class Taste(db.Model):
     def soft_delete(self):
         self.deletedAt = datetime.utcnow()
         self.updatedAt = datetime.utcnow()
-        self._meta_op = 'd'
+        
 
     def restore(self):
         self.deletedAt = None
         self.updatedAt = datetime.utcnow()
-        self._meta_op = 'u'
 
     @property
     def is_deleted(self):
