@@ -164,7 +164,7 @@ def edit_taste(taste_id):
 @jwt_required()
 def delete_taste():
     current_user_id = get_current_user_id()
-    
+        
     if not current_user_id:
         return create_response(code=200, message="User authentication required"), 200
     
