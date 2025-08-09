@@ -733,11 +733,55 @@ class UserActionService:
             userId=user_id
         ).first()
 
-    
+        ''' Soft delete the taste in PostgreSQL and update MongoDB directly. 应对对MongoDB延迟同步的问题, 确保用户删除操作的即时性 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+        ''' 很关键 '''
+
         if not taste:
             return create_response(code=200, message="Taste not found")
 
         else:
+            # First update the state and soft delete in PostgreSQL
+            taste.recommendState = TasteRecommendState.NO.value
+            taste.state = taste.calculate_state()
+            taste.soft_delete()
+            
+            # Update dish count and commit PostgreSQL changes
+            UserActionService._update_dish_recommend_count(taste.dishId)
+            db.session.commit()
+            
+            # Now update MongoDB directly with the same deletedAt timestamp
+            from extensions import get_mongo_db
+            from bson import ObjectId
+            
+            mongo_db = get_mongo_db()
+            if mongo_db is not None:
+                try:
+                    # Update MongoDB taste collection with deletedAt
+                    taste_collection = mongo_db['taste']
+                    result = taste_collection.update_one(
+                        {'_id': ObjectId(taste_id)},
+                        {
+                            '$set': {
+                                'deletedAt': taste.deletedAt,
+                                'updatedAt': taste.updatedAt,
+                                'recommendState': taste.recommendState,
+                                'state': taste.state
+                            }
+                        }
+                    )
+                except Exception as e:
+                    # Continue even if MongoDB update fails
+                    pass
+            
+            # Finally send the message to RabbitMQ
             rabbitmq = UserActionService._get_rabbitmq_service()
             rabbitmq.send_taste_create(
                     taste_id=taste._id,
@@ -748,14 +792,6 @@ class UserActionService:
                     media_ids=taste.mediaIds
                 )
 
-            taste.recommendState = TasteRecommendState.NO.value
-            taste.state = taste.calculate_state()
-
-            taste.soft_delete()
-
-            UserActionService._update_dish_recommend_count(taste.dishId)
-
-            db.session.commit()
             return create_response(code=0, message="Taste deleted successfully")
 
     @staticmethod
