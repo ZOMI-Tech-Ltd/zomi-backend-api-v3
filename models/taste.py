@@ -51,7 +51,7 @@ class Taste(db.Model):
     state = db.Column(db.Integer, nullable=False)
     createdAt = db.Column(db.DateTime, default = datetime.utcnow)
     updatedAt = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
-    deleteAt = db.Column(db.DateTime, nullable=True)
+    deletedAt = db.Column(db.DateTime, nullable=True)
 
 
    

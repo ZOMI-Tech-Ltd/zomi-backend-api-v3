@@ -29,7 +29,7 @@ class Like(db.Model):
     # state = db.Column(db.Integer, nullable=False, default=0)
 
     #soft delete
-    deleteAt = db.Column(db.DateTime, nullable=True)
+    deletedAt = db.Column(db.DateTime, nullable=True)
 
 
 
