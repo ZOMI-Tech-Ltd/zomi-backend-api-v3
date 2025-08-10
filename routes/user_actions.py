@@ -2,6 +2,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.user_action_service import UserActionService
 from utils.response_utils import create_response
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 user_actions_bp = Blueprint('user_actions', __name__, url_prefix='/v3')
 
@@ -260,6 +264,21 @@ def collect_dish(dish_id):
         user_id=current_user_id,
         dish_id=dish_id
     )
+    
+    # Send push notification
+    if result['code'] == 0:  # Only send notification if collect was successful
+        try:
+            requests.post(
+                "https://api.app.zomi.menu/api/notification/api/push/collect",
+                json={
+                    "dish_id": dish_id,
+                    "current_user_id": current_user_id
+                },
+                timeout=2  # Set reasonable timeout
+            )
+        except Exception as e:
+            logger.error(f"Push error for collect: {e}")
+    
     if result['code']==0:
         status_code = 0
     else:   
@@ -290,6 +309,20 @@ def like_taste(taste_id):
         taste_id=taste_id
     )
     
+    # Send push notification
+    if result['code'] == 0:  # Only send notification if like was successful
+        try:
+            requests.post(
+                "https://api.app.zomi.menu/api/notification/api/push/like",
+                json={
+                    "taste_id": taste_id,
+                    "current_user_id": current_user_id
+                },
+                timeout=2  
+            )
+        except Exception as e:
+            logger.error(f"Push error for like: {e}")
+
     return create_response(code=0, data=result['data'], message=result['msg']), 200
 
 
