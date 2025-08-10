@@ -46,7 +46,7 @@ class Dish(db.Model):
     __v = db.Column("__v", db.Integer, nullable=True, default=0)
     createdAt = db.Column(db.DateTime, nullable=True, default=datetime.now)
     updatedAt = db.Column(db.DateTime, nullable=True, default=datetime.now)
-    deletedAt = db.Column(db.DateTime, nullable=True)
+    #deleteAt = db.Column(db.DateTime, nullable=True)
     collectionCnt = db.Column("collectionCnt", nullable=True, default=0)
     commentCnt = db.Column("commentCnt", nullable=True, default=0)
     likeCnt = db.Column("likeCnt", nullable=True, default=0)

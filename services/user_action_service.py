@@ -411,10 +411,23 @@ class UserActionService:
             taste.recommendState = recommendState.value
 
             if media_ids is not None:
-                #check if media ids exist in media table
-                media_ids = [media_id for media_id in media_ids if Media.query.filter_by(_id=media_id).first()]
-                if len(media_ids) != len(media_ids):
-                    return create_response(code=400, message="Invalid media ids")   
+                #check if media ids are objectids or urls
+                valid_media_ids = []
+                for media_id in media_ids:
+                    if media_id.startswith('http'):
+                        media = Media.query.filter_by(url=media_id).first()
+                        if not media:
+                            return create_response(code=400, message="Invalid media url")
+                        valid_media_ids.append(media._id)
+                    else:
+                        if not Media.query.filter_by(_id=media_id).first():
+                            return create_response(code=400, message="Invalid media ids")
+                        valid_media_ids.append(media_id)
+                
+                if len(valid_media_ids) != len(media_ids):
+                    return create_response(code=400, message="Invalid media ids")
+                
+                
                 taste.mediaIds = media_ids
             
 

@@ -16,7 +16,7 @@ class Collection(db.Model):
     updatedAt = db.Column(db.DateTime, default  = datetime.utcnow, onupdate=datetime.utcnow)
 
     #deletedAt
-    deletedAt = db.Column(db.DateTime, nullable=True)
+    deleteAt = db.Column(db.DateTime, nullable=True)
 
 
     user = db.Column('user' ,db.String(255), db.ForeignKey('users._id'), nullable=False)
