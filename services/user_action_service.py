@@ -137,7 +137,7 @@ class UserActionService:
                           recommendState = TasteRecommendState.YES,
                           usefulTotal = 0,
                           mediaIds = [],
-                          mood = 1,
+                          mood = 0,
                           state = 1,
                           createdAt = datetime.utcnow(),
                           updatedAt = datetime.utcnow(),
