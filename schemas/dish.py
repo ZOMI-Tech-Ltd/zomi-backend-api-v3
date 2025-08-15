@@ -97,7 +97,8 @@ class DishOverviewSchema(ma.Schema):
         return {
             'url': media_item.url,
             'height': height,
-            'width': width
+            'width': width,
+            'externalImage': media_item.source == "GOOGLE_IMAGE" if media_item.source else False
         } 
 
     def get_ratings(self, obj):

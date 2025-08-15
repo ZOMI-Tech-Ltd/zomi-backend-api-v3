@@ -59,7 +59,8 @@ Retrieves detailed information about a specific dish.
     "images": {
       "url": "https://...",
       "width": 800,
-      "height": 600
+      "height": 600,
+      "externalImage": true
     },
     "recommendedCount": 42,
     "merchant": {
