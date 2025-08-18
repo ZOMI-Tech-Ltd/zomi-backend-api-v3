@@ -26,7 +26,7 @@ class MerchantSchema(ma.Schema):
 
 
     def get_subdomain_name(self, obj):
-        if getattr(obj,"partnership_status")=='ACTIVE' and hasattr(obj,"subdomainName"):
+        if hasattr(obj,"subdomainName"):
             return ''.join(['https://',obj.subdomainName,'.zomi.menu'])
         return None
     
