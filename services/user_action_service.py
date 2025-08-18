@@ -816,7 +816,7 @@ class UserActionService:
                 return create_response(
                     code=0,
                     data={
-                        "dish_id": dish_id,
+                        "id": dish_id,
                         "merchant_id": merchant_id,
                         "name": name,
                         "status": "pending_creation"
