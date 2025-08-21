@@ -13,14 +13,35 @@ class TasteRecommendState(IntEnum):
 
 
 class TasteState(IntEnum):
-    DEFAULT = 0
+    #eaten = 0 
+    DEFAULT = 0 
+    #eaten + like
     RECOMMEND = 1
+    #eaten + dislike
     NOT_RECOMMEND = 2
+
+    #comment_only
     COMMENT = 3
+    #comment_only + like
+    COMMENT_AND_RECOMMEND = 30
+    #comment_only + dislike
+    COMMENT_AND_NOT_RECOMMEND = 31
+
+    #media_only
     MEDIA = 4
+    #media_only + like
+    MEDIA_AND_RECOMMEND = 40
+    #media_only + dislike
+    MEDIA_AND_NOT_RECOMMEND = 41
+
+    #comment_and_media
     COMMENT_AND_MEDIA = 5
-    GENERAL = 100
-    COMPLETE = 500
+    #comment_and_media + like
+    COMMENT_AND_MEDIA_AND_RECOMMEND = 100
+    #comment_and_media + dislike
+    COMMENT_AND_MEDIA_AND_NOT_RECOMMEND = 101
+
+    
 
 
 class Mood(IntEnum):
