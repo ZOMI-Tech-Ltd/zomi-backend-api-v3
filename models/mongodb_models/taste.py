@@ -77,29 +77,67 @@ class MongoTaste(MongoBaseModel):
         """Calculate taste state based on content - mirrors PostgreSQL logic"""
         state = 0  # DEFAULT
         
-        if recommend_state == 1:
-            state = 1  # RECOMMEND
+        has_comment = bool(comment and comment.strip())
+        has_media = bool(media_ids and len(media_ids) > 0)
+
+        if has_comment and has_media:
+            if recommend_state == 1:  # YES
+                return 100  # COMMENT_AND_MEDIA_AND_RECOMMEND
+            elif recommend_state == 2:  # NO
+                return 101  # COMMENT_AND_MEDIA_AND_NOT_RECOMMEND
+            else:
+                return 5  # COMMENT_AND_MEDIA
+                
+        elif has_comment:
+            # Comment only
+            if recommend_state == 1:  # YES
+                return 30  # COMMENT_AND_RECOMMEND
+            elif recommend_state == 2:  # NO
+                return 31  # COMMENT_AND_NOT_RECOMMEND
+            else:
+                return 3  # COMMENT
+                
+        elif has_media:
+            # Media only
+            if recommend_state == 1:  # YES
+                return 40  # MEDIA_AND_RECOMMEND
+            elif recommend_state == 2:  # NO
+                return 41  # MEDIA_AND_NOT_RECOMMEND
+            else:
+                return 4  # MEDIA
+                
+        else:
+            # No content, just recommendation
+            if recommend_state == 1:  # YES
+                return 1  # RECOMMEND
+            elif recommend_state == 2:  # NO
+                return 2  # NOT_RECOMMEND
+            else:
+                return 0  # DEFAULT
+                
+        # if recommend_state == 1:
+        #     state = 1  # RECOMMEND
 
             
-        elif recommend_state == 2:
-            state = 2  # NOT_RECOMMEND
+        # elif recommend_state == 2:
+        #     state = 2  # NOT_RECOMMEND
         
-        # General evaluation
-        if mood > 0 or len(tags or []) > 0 or comment or len(media_ids or []) > 0:
-            state = 100  # GENERAL
+        # # General evaluation
+        # if mood > 0 or len(tags or []) > 0 or comment or len(media_ids or []) > 0:
+        #     state = 100  # GENERAL
         
-        if comment:
-            state = 3  # COMMENT
+        # if comment:
+        #     state = 3  # COMMENT
         
-        if len(media_ids or []) > 0:
-            state = 4  # MEDIA
+        # if len(media_ids or []) > 0:
+        #     state = 4  # MEDIA
         
-        if comment and len(media_ids or []) > 0:
-            state = 5  # COMMENT_AND_MEDIA
+        # if comment and len(media_ids or []) > 0:
+        #     state = 5  # COMMENT_AND_MEDIA
         
-        # Complete evaluation
-        if (mood > 0 and comment and 
-            len(media_ids or []) > 0 and len(tags or []) > 0):
-            state = 500  # COMPLETE
+        # # Complete evaluation
+        # if (mood > 0 and comment and 
+        #     len(media_ids or []) > 0 and len(tags or []) > 0):
+        #     state = 500  # COMPLETE
         
         return state

@@ -91,30 +91,76 @@ class Taste(db.Model):
 
     # calculates states after editing a taste
     def calculate_state(self):
+
+        has_comment = bool(self.comment and self.comment.strip())
+        has_media = bool(self.mediaIds and len(self.mediaIds) > 0)
+
+
         state = TasteState.DEFAULT
         
-        if self.recommendState == TasteRecommendState.YES:
-            state = TasteState.RECOMMEND
-        elif self.recommendState == TasteRecommendState.NO:
-            state = TasteState.NOT_RECOMMEND
+        if has_comment and has_media:
+            #comment_and_media FALLS to 5,100, 101
+            if self.recommendState == TasteRecommendState.YES:
+                state = TasteState.COMMENT_AND_MEDIA_AND_RECOMMEND
+            elif self.recommendState == TasteRecommendState.NO:
+                state = TasteState.COMMENT_AND_MEDIA_AND_NOT_RECOMMEND
+            else:
+                state = TasteState.COMMENT_AND_MEDIA
+
+        elif has_comment:
+            #comment_only FALLS to 3,30,31
+            if self.recommendState == TasteRecommendState.YES:
+                state = TasteState.COMMENT_AND_RECOMMEND
+            elif self.recommendState == TasteRecommendState.NO:
+                state = TasteState.COMMENT_AND_NOT_RECOMMEND
+            else:
+                state = TasteState.COMMENT
+
+        elif has_media:
+            #media_only FALLS to 4,40,41
+            if self.recommendState == TasteRecommendState.YES:
+                state = TasteState.MEDIA_AND_RECOMMEND
+            elif self.recommendState == TasteRecommendState.NO:
+                state = TasteState.MEDIA_AND_NOT_RECOMMEND
+            else:
+                state = TasteState.MEDIA
+
+        else:
+            #default FALLS to 0
+            if self.recommendState == TasteRecommendState.YES:
+                state = TasteState.RECOMMEND
+            elif self.recommendState == TasteRecommendState.NO:
+                state = TasteState.NOT_RECOMMEND
+            else:
+                state = TasteState.DEFAULT
+
+        return state
+
+
+
+
+        # if self.recommendState == TasteRecommendState.YES:
+        #     state = TasteState.RECOMMEND
+        # elif self.recommendState == TasteRecommendState.NO:
+        #     state = TasteState.NOT_RECOMMEND
         
-        # General evaluation
-        if self.mood > Mood.DEFAULT or len(self.tags or []) > 0 or self.comment or len(self.mediaIds or []) > 0:
-            state = TasteState.GENERAL
+        # # General evaluation
+        # if self.mood > Mood.DEFAULT or len(self.tags or []) > 0 or self.comment or len(self.mediaIds or []) > 0:
+        #     state = TasteState.GENERAL
         
-        if self.comment:
-            state = TasteState.COMMENT
+        # if self.comment:
+        #     state = TasteState.COMMENT
         
-        if len(self.mediaIds or []) > 0:
-            state = TasteState.MEDIA
+        # if len(self.mediaIds or []) > 0:
+        #     state = TasteState.MEDIA
         
-        if self.comment and len(self.mediaIds or []) > 0:
-            state = TasteState.COMMENT_AND_MEDIA
+        # if self.comment and len(self.mediaIds or []) > 0:
+        #     state = TasteState.COMMENT_AND_MEDIA
         
-        # Complete evaluation
-        if (self.mood > Mood.DEFAULT and self.comment and 
-            len(self.mediaIds or []) > 0 and len(self.tags or []) > 0):
-            state = TasteState.COMPLETE
+        # # Complete evaluation
+        # if (self.mood > Mood.DEFAULT and self.comment and 
+        #     len(self.mediaIds or []) > 0 and len(self.tags or []) > 0):
+        #     state = TasteState.COMPLETE
         
         return state
     
