@@ -6,13 +6,13 @@ from bson import ObjectId
 from enum import IntEnum
 
 
-class TasteRecommendState(IntEnum):
+class TasteRecommendState(Enum):
     DEFAULT = 0
     YES = 1
     NO = 2
 
 
-class TasteState(IntEnum):
+class TasteState(Enum):
     #eaten = 0 
     DEFAULT = 0 
     #eaten + like

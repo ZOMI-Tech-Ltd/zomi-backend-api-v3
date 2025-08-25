@@ -9,7 +9,7 @@ import os
 from contextlib import contextmanager
 from mq.enums import *
 from bson import ObjectId
-
+from models.taste import TasteRecommendState
 
 
 logger = logging.getLogger(__name__)
@@ -120,14 +120,14 @@ class RabbitMQService:
     
 
     def send_taste_create(self, taste_id: str, user_id: str, dish_id: str,
-                         comment: str, recommend_state: RecommendState,
+                         comment: str, recommend_state: int,
                          media_ids: Optional[List[str]] = None) -> bool:
         message = TasteCreateMessage(
             id=taste_id,
             userId=user_id,
             dishId=dish_id,
             comment=comment,
-            recommendState= recommend_state.value,
+            recommendState= recommend_state,
             mediaIds=media_ids
         )
         

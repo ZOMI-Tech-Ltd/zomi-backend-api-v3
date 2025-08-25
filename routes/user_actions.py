@@ -93,6 +93,7 @@ def create_many_tastes():
             media_ids=item.get('mediaIds',[]),
             mood=item.get('mood',0),
             tags=item.get('tags',[]),
+            recommend_state=item.get('recommendState', 0)
         )
         results.append(result)
     print(results)
@@ -155,7 +156,7 @@ def edit_taste(taste_id):
         mood=data.get('mood', 0),
         tags=data.get('tags', []),
         taste_id=taste_id,
-        recommend_state=data.get('recommendState', 1)
+        recommend_state=data.get('recommendState', 0)
     )
     
     if result['code'] == 0:
@@ -375,3 +376,9 @@ def add_dish_ugc():
         return create_response(code=0, data=result['data'], message=result['msg']), 200
     else:
         return create_response(code=200, message=result['msg']), 200
+
+
+"""
+--------------------------------New Features supporting version 0.7.0-----------------------------------
+"""
+

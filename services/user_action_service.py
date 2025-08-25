@@ -123,7 +123,7 @@ class UserActionService:
         if deleted_taste:
             # Restore the deleted taste
             deleted_taste.restore()
-            deleted_taste.recommendState = TasteRecommendState.YES
+            deleted_taste.recommendState = TasteRecommendState.DEFAULT
             deleted_taste.state = deleted_taste.calculate_state()
             deleted_taste.updatedAt = datetime.utcnow()
 
@@ -134,7 +134,7 @@ class UserActionService:
                             dishId=dish_id,
                             comment = None,
                           isVerified = False,
-                          recommendState = TasteRecommendState.YES,
+                          recommendState = TasteRecommendState.DEFAULT,
                           usefulTotal = 0,
                           mediaIds = [],
                           mood = 0,
@@ -159,7 +159,7 @@ class UserActionService:
                 user_id=user_id,
                 dish_id=dish_id,
                 comment="",
-                recommend_state=TasteRecommendState.YES,
+                recommend_state=TasteRecommendState.DEFAULT,
                 media_ids=[]
             )
 
@@ -170,7 +170,7 @@ class UserActionService:
                     user_id=user_id,
                     dish_id=dish_id,
                     comment="",
-                    recommend_state=TasteRecommendState.YES,
+                    recommend_state=TasteRecommendState.DEFAULT,
                     media_ids=[]
                 )
             
@@ -379,7 +379,7 @@ class UserActionService:
         
     
     @staticmethod
-    def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=1, taste_id=None):
+    def edit_taste(user_id, dish_id, comment="", media_ids=[], mood=0, tags=[],recommend_state=0, taste_id=None):
         try:
             # Find the taste
             taste = Taste.active_tastes().filter_by(
@@ -399,16 +399,9 @@ class UserActionService:
             if recommend_state is not None:
                 if recommend_state not in [0, 1, 2]:
                     return create_response(code=400, message="Invalid recommend state")
-                else:
-                    if recommend_state == 0:
-                        recommendState = RecommendState.DEFAULT
-                    elif recommend_state == 1:
-                        recommendState = RecommendState.RECOMMEND
-                    elif recommend_state == 2:
-                        recommendState = RecommendState.NOT_RECOMMEND
-            
-
-            taste.recommendState = recommendState.value
+                
+            else:
+                taste.recommendState = recommend_state
 
             if media_ids is not None:
                 #check if media ids are objectids or urls
@@ -458,7 +451,7 @@ class UserActionService:
                 user_id=taste.userId,
                 dish_id=taste.dishId,
                 comment=taste.comment,
-                recommend_state=recommendState,
+                recommend_state=recommend_state,
                 media_ids=taste.mediaIds
             )   
 
@@ -491,10 +484,10 @@ class UserActionService:
             dish_id: The dish ID
         """
         try:
-            # Count recommendations for this dish
-            recommend_count = Taste.active_tastes().filter_by(
-                dishId=dish_id,
-                recommendState=TasteRecommendState.YES
+            # Count recommendations for this dish (both YES and DEFAULT states)
+            recommend_count = Taste.active_tastes().filter(
+                Taste.dishId == dish_id,
+                Taste.recommendState.in_([TasteRecommendState.YES, TasteRecommendState.DEFAULT])
             ).count()
             
             # Update dish
@@ -582,7 +575,7 @@ class UserActionService:
             return create_response(code=0, message="Failed to get user taste total")
 
     @staticmethod
-    def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=1):
+    def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=0):
         """
         This module includes creating/updating tastes, fix bug for not updating existing tastes.
         """
@@ -642,7 +635,7 @@ class UserActionService:
                     user_id=taste.userId,
                     dish_id=taste.dishId,
                     comment=taste.comment,
-                    recommend_state=RecommendState.RECOMMEND,
+                    recommend_state=recommend_state,
                     media_ids=taste.mediaIds
                 )
 
@@ -716,7 +709,7 @@ class UserActionService:
                     user_id=taste.userId,
                     dish_id=taste.dishId,
                     comment=taste.comment,
-                    recommend_state=RecommendState.RECOMMEND,
+                    recommend_state=recommend_state,
                     media_ids=taste.mediaIds
                 )
 
@@ -757,11 +750,11 @@ class UserActionService:
                     user_id=taste.userId,
                     dish_id=taste.dishId,
                     comment=taste.comment,
-                    recommend_state=RecommendState.NOT_RECOMMEND,
+                    recommend_state=TasteRecommendState.DEFAULT,
                     media_ids=taste.mediaIds
                 )
 
-            taste.recommendState = TasteRecommendState.NO.value
+            taste.recommendState = TasteRecommendState.DEFUALT
             taste.state = taste.calculate_state()
 
             taste.soft_delete()
@@ -832,3 +825,11 @@ class UserActionService:
         except Exception as e:
             print(f"Error creating dish through UGC: {e}")
             return create_response(code=500, message="Failed to create dish")
+
+
+
+    """
+    --------------------------------New Features supporting version 0.7.0-----------------------------------
+    """
+
+         
