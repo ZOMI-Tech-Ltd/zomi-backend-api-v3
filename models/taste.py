@@ -21,16 +21,16 @@ class TasteState(Enum):
     NOT_RECOMMEND = 2
 
     #comment_only
-    COMMENT = 3
+    COMMENT = 30
     #comment_only + like
-    COMMENT_AND_RECOMMEND = 30
+    COMMENT_AND_RECOMMEND = 3
     #comment_only + dislike
     COMMENT_AND_NOT_RECOMMEND = 31
 
     #media_only
-    MEDIA = 4
+    MEDIA = 40
     #media_only + like
-    MEDIA_AND_RECOMMEND = 40
+    MEDIA_AND_RECOMMEND = 4
     #media_only + dislike
     MEDIA_AND_NOT_RECOMMEND = 41
 
@@ -108,7 +108,7 @@ class Taste(db.Model):
                 state = TasteState.COMMENT_AND_MEDIA
 
         elif has_comment:
-            #comment_only FALLS to 3,30,31
+            #comment_only FALLS to 30,3,31
             if self.recommendState == TasteRecommendState.YES:
                 state = TasteState.COMMENT_AND_RECOMMEND
             elif self.recommendState == TasteRecommendState.NO:
@@ -117,7 +117,7 @@ class Taste(db.Model):
                 state = TasteState.COMMENT
 
         elif has_media:
-            #media_only FALLS to 4,40,41
+            #media_only FALLS to 40,4,41
             if self.recommendState == TasteRecommendState.YES:
                 state = TasteState.MEDIA_AND_RECOMMEND
             elif self.recommendState == TasteRecommendState.NO:
