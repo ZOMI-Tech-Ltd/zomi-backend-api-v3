@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.sql import func
 from bson import ObjectId
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 
 class TasteRecommendState(Enum):
@@ -96,43 +96,43 @@ class Taste(db.Model):
         has_media = bool(self.mediaIds and len(self.mediaIds) > 0)
 
 
-        state = TasteState.DEFAULT
+        state = TasteState.DEFAULT.value
         
         if has_comment and has_media:
             #comment_and_media FALLS to 5,100, 101
-            if self.recommendState == TasteRecommendState.YES:
-                state = TasteState.COMMENT_AND_MEDIA_AND_RECOMMEND
-            elif self.recommendState == TasteRecommendState.NO:
-                state = TasteState.COMMENT_AND_MEDIA_AND_NOT_RECOMMEND
+            if self.recommendState == TasteRecommendState.YES.value:
+                state = TasteState.COMMENT_AND_MEDIA_AND_RECOMMEND.value
+            elif self.recommendState == TasteRecommendState.NO.value:
+                state = TasteState.COMMENT_AND_MEDIA_AND_NOT_RECOMMEND.value
             else:
-                state = TasteState.COMMENT_AND_MEDIA
+                state = TasteState.COMMENT_AND_MEDIA.value
 
         elif has_comment:
             #comment_only FALLS to 30,3,31
-            if self.recommendState == TasteRecommendState.YES:
-                state = TasteState.COMMENT_AND_RECOMMEND
-            elif self.recommendState == TasteRecommendState.NO:
-                state = TasteState.COMMENT_AND_NOT_RECOMMEND
+            if self.recommendState == TasteRecommendState.YES.value:
+                state = TasteState.COMMENT_AND_RECOMMEND.value
+            elif self.recommendState == TasteRecommendState.NO.value:
+                state = TasteState.COMMENT_AND_NOT_RECOMMEND.value
             else:
-                state = TasteState.COMMENT
+                state = TasteState.COMMENT.value
 
         elif has_media:
             #media_only FALLS to 40,4,41
-            if self.recommendState == TasteRecommendState.YES:
-                state = TasteState.MEDIA_AND_RECOMMEND
-            elif self.recommendState == TasteRecommendState.NO:
-                state = TasteState.MEDIA_AND_NOT_RECOMMEND
+            if self.recommendState == TasteRecommendState.YES.value:
+                state = TasteState.MEDIA_AND_RECOMMEND.value
+            elif self.recommendState == TasteRecommendState.NO.value:
+                state = TasteState.MEDIA_AND_NOT_RECOMMEND.value
             else:
-                state = TasteState.MEDIA
+                state = TasteState.MEDIA.value
 
         else:
             #default FALLS to 0
-            if self.recommendState == TasteRecommendState.YES:
-                state = TasteState.RECOMMEND
-            elif self.recommendState == TasteRecommendState.NO:
-                state = TasteState.NOT_RECOMMEND
+            if self.recommendState == TasteRecommendState.YES.value:
+                state = TasteState.RECOMMEND.value
+            elif self.recommendState == TasteRecommendState.NO.value:
+                state = TasteState.NOT_RECOMMEND.value
             else:
-                state = TasteState.DEFAULT
+                state = TasteState.DEFAULT.value
 
         return state
 

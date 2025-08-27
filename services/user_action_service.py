@@ -123,7 +123,7 @@ class UserActionService:
         if deleted_taste:
             # Restore the deleted taste
             deleted_taste.restore()
-            deleted_taste.recommendState = TasteRecommendState.DEFAULT
+            deleted_taste.recommendState = TasteRecommendState.DEFAULT.value
             deleted_taste.state = deleted_taste.calculate_state()
             deleted_taste.updatedAt = datetime.utcnow()
 
@@ -134,7 +134,7 @@ class UserActionService:
                             dishId=dish_id,
                             comment = None,
                           isVerified = False,
-                          recommendState = TasteRecommendState.DEFAULT,
+                          recommendState = TasteRecommendState.DEFAULT.value,
                           usefulTotal = 0,
                           mediaIds = [],
                           mood = 0,
@@ -159,7 +159,7 @@ class UserActionService:
                 user_id=user_id,
                 dish_id=dish_id,
                 comment="",
-                recommend_state=TasteRecommendState.DEFAULT,
+                recommend_state=TasteRecommendState.DEFAULT.value,
                 media_ids=[]
             )
 
@@ -170,7 +170,7 @@ class UserActionService:
                     user_id=user_id,
                     dish_id=dish_id,
                     comment="",
-                    recommend_state=TasteRecommendState.DEFAULT,
+                    recommend_state=TasteRecommendState.DEFAULT.value,
                     media_ids=[]
                 )
             
@@ -193,7 +193,7 @@ class UserActionService:
         if not taste:
             return create_response(code=404, message="Not recommended yet", data=None)
 
-        taste.recommendState = TasteRecommendState.NO
+        taste.recommendState = TasteRecommendState.NO.value
         taste.state = taste.calculate_state()
 
 
@@ -210,7 +210,7 @@ class UserActionService:
                 user_id=user_id,
                 dish_id=dish_id,
                 comment="",
-                recommend_state=TasteRecommendState.NO,
+                recommend_state=TasteRecommendState.NO.value,
                 media_ids=[]
             )
             return create_response(code=0, message="Unrecommended successfully", data=None)
@@ -487,7 +487,7 @@ class UserActionService:
             # Count recommendations for this dish (both YES and DEFAULT states)
             recommend_count = Taste.active_tastes().filter(
                 Taste.dishId == dish_id,
-                Taste.recommendState.in_([TasteRecommendState.YES, TasteRecommendState.DEFAULT])
+                Taste.recommendState.in_([TasteRecommendState.YES.value, TasteRecommendState.DEFAULT.value])
             ).count()
             
             # Update dish
@@ -750,11 +750,11 @@ class UserActionService:
                     user_id=taste.userId,
                     dish_id=taste.dishId,
                     comment=taste.comment,
-                    recommend_state=TasteRecommendState.DEFAULT,
+                    recommend_state=TasteRecommendState.DEFAULT.value,
                     media_ids=taste.mediaIds
                 )
 
-            taste.recommendState = TasteRecommendState.DEFUALT
+            taste.recommendState = TasteRecommendState.DEFAULT.value
             taste.state = taste.calculate_state()
 
             taste.soft_delete()
