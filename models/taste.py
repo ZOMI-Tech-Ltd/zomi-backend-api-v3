@@ -91,48 +91,58 @@ class Taste(db.Model):
 
     # calculates states after editing a taste
     def calculate_state(self):
-
+        """
+        Calculate state based on content and recommendation state.
+        
+        Logic:
+        - No Comment and Media:
+          Eaten Only = 0, Eaten + Like = 1, Eaten + Dislike = 2
+        - Comment Only:
+          Eaten + Comment = 30, Eaten + Comment + Like = 3, Eaten + Comment + Dislike = 31
+        - Media Only:
+          Eaten + Media = 40, Eaten + Media + Like = 4, Eaten + Media + Dislike = 41
+        - Comment and Media:
+          Eaten + Comment + Media = 5, Eaten + Comment + Media + Like = 100, 
+          Eaten + Comment + Media + Dislike = 101
+        """
         has_comment = bool(self.comment and self.comment.strip())
         has_media = bool(self.mediaIds and len(self.mediaIds) > 0)
 
-
-        state = TasteState.DEFAULT.value
-        
+        # Both comment and media exist
         if has_comment and has_media:
-            #comment_and_media FALLS to 5,100, 101
             if self.recommendState == TasteRecommendState.YES.value:
-                state = TasteState.COMMENT_AND_MEDIA_AND_RECOMMEND.value
+                state = TasteState.COMMENT_AND_MEDIA_AND_RECOMMEND.value  # 100
             elif self.recommendState == TasteRecommendState.NO.value:
-                state = TasteState.COMMENT_AND_MEDIA_AND_NOT_RECOMMEND.value
+                state = TasteState.COMMENT_AND_MEDIA_AND_NOT_RECOMMEND.value  # 101
             else:
-                state = TasteState.COMMENT_AND_MEDIA.value
+                state = TasteState.COMMENT_AND_MEDIA.value  # 5
 
+        # Comment only
         elif has_comment:
-            #comment_only FALLS to 30,3,31
             if self.recommendState == TasteRecommendState.YES.value:
-                state = TasteState.COMMENT_AND_RECOMMEND.value
+                state = TasteState.COMMENT_AND_RECOMMEND.value  # 3
             elif self.recommendState == TasteRecommendState.NO.value:
-                state = TasteState.COMMENT_AND_NOT_RECOMMEND.value
+                state = TasteState.COMMENT_AND_NOT_RECOMMEND.value  # 31
             else:
-                state = TasteState.COMMENT.value
+                state = TasteState.COMMENT.value  # 30
 
+        # Media only
         elif has_media:
-            #media_only FALLS to 40,4,41
             if self.recommendState == TasteRecommendState.YES.value:
-                state = TasteState.MEDIA_AND_RECOMMEND.value
+                state = TasteState.MEDIA_AND_RECOMMEND.value  # 4
             elif self.recommendState == TasteRecommendState.NO.value:
-                state = TasteState.MEDIA_AND_NOT_RECOMMEND.value
+                state = TasteState.MEDIA_AND_NOT_RECOMMEND.value  # 41
             else:
-                state = TasteState.MEDIA.value
+                state = TasteState.MEDIA.value  # 40
 
+        # No content (eaten only)
         else:
-            #default FALLS to 0
             if self.recommendState == TasteRecommendState.YES.value:
-                state = TasteState.RECOMMEND.value
+                state = TasteState.RECOMMEND.value  # 1
             elif self.recommendState == TasteRecommendState.NO.value:
-                state = TasteState.NOT_RECOMMEND.value
+                state = TasteState.NOT_RECOMMEND.value  # 2
             else:
-                state = TasteState.DEFAULT.value
+                state = TasteState.DEFAULT.value  # 0
 
         return state
 

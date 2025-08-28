@@ -76,31 +76,44 @@ def get_taste(taste_id):
 @user_actions_bp.route('/taste/createMany', methods=['POST'])
 @jwt_required()
 def create_many_tastes():
+    """
+    Unified API for creating, editing, and deleting tastes.
+    - Create: New taste when tasteId not provided and no existing taste found
+    - Edit: Update existing taste with new recommendState (0, 1, 2)
+    - Delete: Soft delete when recommendState is null
+    - Restore: Remove deletedAt when acting on a deleted taste
+    """
     current_user_id = get_current_user_id()
     
     if not current_user_id:
         return create_response(code=200, message="User authentication required"), 200
 
-    #iterate over items in request body
-    items = request.get_json().get('items',[])
+    # Iterate over items in request body
+    items = request.get_json().get('items', [])
 
     results = []
     for item in items:
-        result = UserActionService.create_taste(
+        # Process each taste item - handle create, update, or delete based on recommendState
+        result = UserActionService.process_taste(
             user_id=current_user_id,
-            dish_id=item.get('dishId',""),
-            comment=item.get('comment',""),
-            media_ids=item.get('mediaIds',[]),
-            mood=item.get('mood',0),
-            tags=item.get('tags',[]),
-            recommend_state=item.get('recommendState', 0)
+            dish_id=item.get('dishId', ""),
+            taste_id=item.get('tasteId', None),  # Optional tasteId for direct updates
+            comment=item.get('comment', ""),
+            media_ids=item.get('mediaIds', []),
+            mood=item.get('mood', 0),
+            tags=item.get('tags', []),
+            recommend_state=item.get('recommendState')  # Can be 0, 1, 2, or None (null)
         )
         results.append(result)
-    print(results)
+    
+    # Return success if all operations succeeded
     if all(result['code'] == 0 for result in results):
-        return create_response(code=0, data=results, message="Taste created successfully"), 200
+        return create_response(code=0, data=results, message="Tastes processed successfully"), 200
     else:
-        return create_response(code=200, message="Failed to create tastes"), 200
+        # Include details about which operations failed
+        failed_items = [r for r in results if r['code'] != 0]
+        return create_response(code=200, data={"failed": failed_items}, 
+                             message="Some taste operations failed"), 200
 
 
 
