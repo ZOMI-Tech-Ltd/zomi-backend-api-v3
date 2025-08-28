@@ -86,34 +86,90 @@ def create_many_tastes():
     current_user_id = get_current_user_id()
     
     if not current_user_id:
-        return create_response(code=200, message="User authentication required"), 200
+        return create_response(code=401, message="User authentication required"), 401
 
-    # Iterate over items in request body
-    items = request.get_json().get('items', [])
+    # Get request body and validate
+    try:
+        data = request.get_json()
+        if not data:
+            return create_response(code=400, message="Request body is required"), 400
+        
+        items = data.get('items', [])
+        if not items:
+            return create_response(code=400, message="Items array is required and cannot be empty"), 400
+        
+        if not isinstance(items, list):
+            return create_response(code=400, message="Items must be an array"), 400
+    except Exception as e:
+        logger.error(f"Error parsing request body: {e}")
+        return create_response(code=400, message="Invalid JSON in request body"), 400
 
     results = []
-    for item in items:
-        # Process each taste item - handle create, update, or delete based on recommendState
-        result = UserActionService.process_taste(
-            user_id=current_user_id,
-            dish_id=item.get('dishId', ""),
-            taste_id=item.get('tasteId', None),  # Optional tasteId for direct updates
-            comment=item.get('comment', ""),
-            media_ids=item.get('mediaIds', []),
-            mood=item.get('mood', 0),
-            tags=item.get('tags', []),
-            recommend_state=item.get('recommendState')  # Can be 0, 1, 2, or None (null)
-        )
-        results.append(result)
+    success_count = 0
+    failed_count = 0
+    
+    # Log the request
+    logger.info(f"Processing {len(items)} taste items for user {current_user_id}")
+    
+    for index, item in enumerate(items):
+        try:
+            # Validate required fields for non-delete operations
+            recommend_state = item.get('recommendState')
+            dish_id = item.get('dishId', "")
+            
+            if recommend_state is not None and not dish_id:
+                result = {
+                    'code': 400,
+                    'message': f"Item {index}: dishId is required for create/update operations",
+                    'data': None
+                }
+                results.append(result)
+                failed_count += 1
+                continue
+            
+            # Process each taste item - handle create, update, or delete based on recommendState
+            result = UserActionService.process_taste(
+                user_id=current_user_id,
+                dish_id=dish_id,
+                taste_id=item.get('tasteId', None),  # Optional tasteId for direct updates
+                comment=item.get('comment', ""),
+                media_ids=item.get('mediaIds', []),
+                mood=item.get('mood', 0),
+                tags=item.get('tags', []),
+                recommend_state=recommend_state  # Can be 0, 1, 2, or None (null)
+            )
+            
+            if result['code'] == 0:
+                success_count += 1
+            else:
+                failed_count += 1
+            
+            results.append(result)
+            
+        except Exception as e:
+            logger.error(f"Error processing item {index}: {e}")
+            result = {
+                'code': 500,
+                'message': f"Item {index}: Internal error - {str(e)}",
+                'data': None
+            }
+            results.append(result)
+            failed_count += 1
+    
+    # Log the summary
+    logger.info(f"Processed {len(items)} items: {success_count} succeeded, {failed_count} failed")
     
     # Return success if all operations succeeded
     if all(result['code'] == 0 for result in results):
-        return create_response(code=0, data=results, message="Tastes processed successfully"), 200
+        return create_response(code=0, data=results, message="All tastes processed successfully"), 200
+    elif any(result['code'] == 0 for result in results):
+        # Partial success
+        return create_response(code=207, data={"results": results, "success": success_count, "failed": failed_count}, 
+                             message=f"Partial success: {success_count} succeeded, {failed_count} failed"), 207
     else:
-        # Include details about which operations failed
-        failed_items = [r for r in results if r['code'] != 0]
-        return create_response(code=200, data={"failed": failed_items}, 
-                             message="Some taste operations failed"), 200
+        # All failed
+        return create_response(code=400, data={"results": results}, 
+                             message="All taste operations failed"), 400
 
 
 

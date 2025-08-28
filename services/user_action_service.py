@@ -107,9 +107,6 @@ class UserActionService:
         Quick recommendation for a dish (eaten only, recommendState=0).
         Uses the unified process_taste method internally.
         """
-        if not UserActionService._check_object_exists(dish_id, UserActionService.OBJECT_TYPE_DISH):
-            return create_response(code=404, message="Object not found", data=None)
-        
         # Use the unified process_taste method with recommendState=0 (eaten only)
         result = UserActionService.process_taste(
             user_id=user_id,
@@ -468,7 +465,7 @@ class UserActionService:
             ).first()
             
             if not taste:
-                return create_response(code=0, message="Taste not found")
+                return create_response(code=404, message="Taste not found")
             
             taste_data = {
                 "id": taste._id,
@@ -489,7 +486,7 @@ class UserActionService:
         
         except Exception as e:
             print(f"Error getting taste: {e}")
-            return create_response(code=0, message="Failed to get taste")
+            return create_response(code=500, message="Failed to get taste")
 
 
     @staticmethod
@@ -508,7 +505,7 @@ class UserActionService:
         
         except Exception as e:
             print(f"Error getting user taste total: {e}")
-            return create_response(code=0, message="Failed to get user taste total")
+            return create_response(code=500, message="Failed to get user taste total")
 
     @staticmethod
     def process_taste(user_id, dish_id, taste_id=None, media_ids=[], comment="", mood=0, tags=[], recommend_state=None):
@@ -519,7 +516,7 @@ class UserActionService:
             user_id: User ID performing the action
             dish_id: Dish ID for the taste
             taste_id: Optional taste ID for direct updates
-            media_ids: List of media IDs
+            media_ids: List of media IDs or URLs
             comment: Comment text
             mood: Mood value (0-3)
             tags: List of tags
@@ -529,6 +526,12 @@ class UserActionService:
             Response dict with code, data, and message
         """
         try:
+            print(f"Processing taste: user_id={user_id}, dish_id={dish_id}, taste_id={taste_id}, recommend_state={recommend_state}")
+            
+            # Validate dish exists if dish_id provided
+            if dish_id and not UserActionService._check_object_exists(dish_id, UserActionService.OBJECT_TYPE_DISH):
+                return create_response(code=404, message="Dish not found")
+            
             # Find existing taste by tasteId or (userId + dishId)
             if taste_id:
                 # Query by taste ID first if provided
@@ -555,25 +558,28 @@ class UserActionService:
                     dishId=dish_id
                 ).first()
 
+            print(f"Found existing_taste: {existing_taste}, deleted_taste: {deleted_taste}")
+
             # Handle DELETE operation (recommendState is None/null)
             if recommend_state is None:
                 if existing_taste:
+                    print(f"Soft deleting taste: {existing_taste._id}")
                     # Soft delete the taste
                     existing_taste.soft_delete()
                     UserActionService._update_dish_recommend_count(existing_taste.dishId)
                     
                     db.session.commit()
                     
-                    # # Send RabbitMQ notification
-                    # rabbitmq = UserActionService._get_rabbitmq_service()
-                    # rabbitmq.send_taste_create(
-                    #     taste_id=existing_taste._id,
-                    #     user_id=user_id,
-                    #     dish_id=existing_taste.dishId,
-                    #     comment="",
-                    #     recommend_state=TasteRecommendState.DEFAULT.value,
-                    #     media_ids=[]
-                    # )
+                    # Send RabbitMQ notification for deletion
+                    rabbitmq = UserActionService._get_rabbitmq_service()
+                    rabbitmq.send_taste_create(
+                        taste_id=existing_taste._id,
+                        user_id=user_id,
+                        dish_id=existing_taste.dishId,
+                        comment="",
+                        recommend_state=TasteRecommendState.DEFAULT.value,
+                        media_ids=[]
+                    )
                     
                     return create_response(
                         code=0,
@@ -593,7 +599,33 @@ class UserActionService:
 
             # Validate recommend_state for create/update operations
             if recommend_state not in [0, 1, 2]:
+                print(f"Invalid recommend_state: {recommend_state}")
                 return create_response(code=400, message="Invalid recommend state. Must be 0, 1, 2, or null")
+            
+            # Validate and process media IDs (handle both IDs and URLs)
+            valid_media_ids = []
+            if media_ids:
+                for media_id in media_ids:
+                    if isinstance(media_id, str) and media_id.startswith('http'):
+                        # Handle URL-based media
+                        media = Media.query.filter_by(url=media_id).first()
+                        if media:
+                            valid_media_ids.append(media._id)
+                        else:
+                            print(f"Invalid media URL: {media_id}")
+                            return create_response(code=400, message=f"Invalid media URL: {media_id}")
+                    else:
+                        # Handle ID-based media
+                        if Media.query.filter_by(_id=media_id).first():
+                            valid_media_ids.append(media_id)
+                        else:
+                            print(f"Invalid media ID: {media_id}")
+                            return create_response(code=400, message=f"Invalid media ID: {media_id}")
+            
+            # Validate mood value
+            if mood not in [0, 1, 2, 3]:
+                print(f"Invalid mood value: {mood}")
+                return create_response(code=400, message="Invalid mood value. Must be 0, 1, 2, or 3")
 
             # Handle UPDATE or RESTORE operation (existing taste found)
             if existing_taste or deleted_taste:
@@ -601,51 +633,42 @@ class UserActionService:
                 
                 # If it's a deleted taste, restore it
                 if deleted_taste and not existing_taste:
+                    print(f"Restoring deleted taste: {taste._id}")
                     taste.restore()
                     action = "restored"
                 else:
                     action = "updated"
+                    print(f"Updating existing taste: {taste._id}")
                 
                 # Update taste fields
-                taste.comment = comment
+                taste.comment = comment or ""
                 taste.recommendState = recommend_state
-                
-                # Validate and update media IDs
-                if media_ids:
-                    valid_media_ids = []
-                    for media_id in media_ids:
-                        if Media.query.filter_by(_id=media_id).first():
-                            valid_media_ids.append(media_id)
-                    if len(valid_media_ids) != len(media_ids):
-                        return create_response(code=400, message="Invalid media ids")
-                    taste.mediaIds = valid_media_ids
-                else:
-                    taste.mediaIds = []
-                
-                # Validate and update mood
-                if mood not in [0, 1, 2, 3]:
-                    return create_response(code=400, message="Invalid mood value")
+                taste.mediaIds = valid_media_ids
                 taste.mood = mood
-                
                 taste.tags = tags or []
                 taste.isVerified = False
+                
+                # Recalculate state based on new values
                 taste.state = taste.calculate_state()
                 taste.updatedAt = datetime.utcnow()
                 
                 db.session.commit()
                 
+                # Update dish recommendation count
                 UserActionService._update_dish_recommend_count(taste.dishId)
                 
                 # Send RabbitMQ notification
-                # rabbitmq = UserActionService._get_rabbitmq_service()
-                # rabbitmq.send_taste_create(
-                #     taste_id=taste._id,
-                #     user_id=taste.userId,
-                #     dish_id=taste.dishId,
-                #     comment=taste.comment,
-                #     recommend_state=recommend_state,
-                #     media_ids=taste.mediaIds
-                # )
+                rabbitmq = UserActionService._get_rabbitmq_service()
+                rabbitmq.send_taste_create(
+                    taste_id=taste._id,
+                    user_id=taste.userId,
+                    dish_id=taste.dishId,
+                    comment=taste.comment,
+                    recommend_state=recommend_state,
+                    media_ids=taste.mediaIds
+                )
+                
+                print(f"Taste {action}: id={taste._id}, state={taste.state}, recommendState={taste.recommendState}")
                 
                 return create_response(
                     code=0,
@@ -661,33 +684,20 @@ class UserActionService:
             
             # Handle CREATE operation (no existing taste)
             else:
+                print(f"Creating new taste for user={user_id}, dish={dish_id}")
+                
                 # Create new taste
                 taste = Taste(
                     userId=user_id,
                     dishId=dish_id,
-                    comment=comment,
+                    comment=comment or "",
                     recommendState=recommend_state,
+                    mediaIds=valid_media_ids,
                     mood=mood,
                     tags=tags or [],
                     isVerified=False,
                     usefulTotal=0
                 )
-                
-                # Validate and set media IDs
-                if media_ids:
-                    valid_media_ids = []
-                    for media_id in media_ids:
-                        if Media.query.filter_by(_id=media_id).first():
-                            valid_media_ids.append(media_id)
-                    if len(valid_media_ids) != len(media_ids):
-                        return create_response(code=400, message="Invalid media ids")
-                    taste.mediaIds = valid_media_ids
-                else:
-                    taste.mediaIds = []
-                
-                # Validate mood
-                if mood not in [0, 1, 2, 3]:
-                    return create_response(code=400, message="Invalid mood value")
                 
                 # Calculate state based on content
                 taste.state = taste.calculate_state()
@@ -697,18 +707,21 @@ class UserActionService:
                 db.session.add(taste)
                 db.session.commit()
                 
+                # Update dish recommendation count
                 UserActionService._update_dish_recommend_count(dish_id)
                 
-                # # Send RabbitMQ notification
-                # rabbitmq = UserActionService._get_rabbitmq_service()
-                # rabbitmq.send_taste_create(
-                #     taste_id=taste._id,
-                #     user_id=taste.userId,
-                #     dish_id=taste.dishId,
-                #     comment=taste.comment,
-                #     recommend_state=recommend_state,
-                #     media_ids=taste.mediaIds
-                # )
+                # Send RabbitMQ notification
+                rabbitmq = UserActionService._get_rabbitmq_service()
+                rabbitmq.send_taste_create(
+                    taste_id=taste._id,
+                    user_id=taste.userId,
+                    dish_id=taste.dishId,
+                    comment=taste.comment,
+                    recommend_state=recommend_state,
+                    media_ids=taste.mediaIds
+                )
+                
+                print(f"Taste created: id={taste._id}, state={taste.state}, recommendState={taste.recommendState}")
                 
                 return create_response(
                     code=0,
@@ -725,7 +738,9 @@ class UserActionService:
         except Exception as e:
             db.session.rollback()
             print(f"Error processing taste: {e}")
-            return create_response(code=500, message="Failed to process taste")
+            import traceback
+            traceback.print_exc()
+            return create_response(code=500, message=f"Failed to process taste: {str(e)}")
 
     @staticmethod
     def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=0):
@@ -752,7 +767,7 @@ class UserActionService:
                 taste.comment = comment
 
                 if recommend_state not in [0,1,2]:
-                    return create_response(code=0, message="Invalid recommend state")
+                    return create_response(code=400, message="Invalid recommend state")
 
                 taste.recommendState = recommend_state
 
@@ -762,13 +777,13 @@ class UserActionService:
                         if Media.query.filter_by(_id=media_id).first():
                             valid_media_ids.append(media_id)
                     if len(valid_media_ids) != len(media_ids):
-                        return create_response(code=0, message="Invalid media ids")   
+                        return create_response(code=400, message="Invalid media ids")   
                     taste.mediaIds = valid_media_ids
                 else: 
                     taste.mediaIds = []
 
                 if mood not in [0,1,2,3]:
-                    return create_response(code=0, message="Invalid mood value")
+                    return create_response(code=400, message="Invalid mood value")
                 taste.mood = mood
 
                 taste.tags = tags or []
@@ -820,7 +835,7 @@ class UserActionService:
                 
                 if recommend_state is not None:
                     if recommend_state not in [0, 1, 2]:
-                        return create_response(code=0, message="Invalid recommend state")
+                        return create_response(code=400, message="Invalid recommend state")
                     taste.recommendState = recommend_state
                 
                 if media_ids:
@@ -829,12 +844,12 @@ class UserActionService:
                         if Media.query.filter_by(_id=media_id).first():
                             valid_media_ids.append(media_id)
                     if len(valid_media_ids) != len(media_ids):
-                        return create_response(code=0, message="Invalid media ids")   
+                        return create_response(code=400, message="Invalid media ids")   
                     taste.mediaIds = valid_media_ids
                 
                 if mood is not None:
                     if mood not in [0, 1, 2, 3]:
-                        return create_response(code=0, message="Invalid mood value")
+                        return create_response(code=400, message="Invalid mood value")
                     taste.mood = mood
                 
                 
@@ -894,7 +909,7 @@ class UserActionService:
 
     
         if not taste:
-            return create_response(code=200, message="Taste not found")
+            return create_response(code=404, message="Taste not found")
 
         else:
             rabbitmq = UserActionService._get_rabbitmq_service()
