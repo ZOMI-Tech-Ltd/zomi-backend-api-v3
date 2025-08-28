@@ -120,8 +120,8 @@ def create_many_tastes():
             if recommend_state is not None and not dish_id:
                 result = {
                     'code': 400,
-                    'message': f"Item {index}: dishId is required for create/update operations",
-                    'data': None
+                    'msg': f"Item {index}: dishId is required for create/update operations",
+                    'data': {'index': index, 'recommendState': recommend_state}
                 }
                 results.append(result)
                 failed_count += 1
@@ -150,8 +150,8 @@ def create_many_tastes():
             logger.error(f"Error processing item {index}: {e}")
             result = {
                 'code': 500,
-                'message': f"Item {index}: Internal error - {str(e)}",
-                'data': None
+                'msg': f"Item {index}: Internal error - {str(e)}",
+                'data': {'index': index, 'dishId': dish_id, 'error': str(e)}
             }
             results.append(result)
             failed_count += 1

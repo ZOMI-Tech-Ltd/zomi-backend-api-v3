@@ -530,7 +530,11 @@ class UserActionService:
             
             # Validate dish exists if dish_id provided
             if dish_id and not UserActionService._check_object_exists(dish_id, UserActionService.OBJECT_TYPE_DISH):
-                return create_response(code=404, message="Dish not found")
+                return create_response(
+                    code=404, 
+                    data={"dishId": dish_id, "action": "validation_failed"},
+                    message=f"Dish not found (dishId: {dish_id})"
+                )
             
             # Find existing taste by tasteId or (userId + dishId)
             if taste_id:
@@ -594,13 +598,18 @@ class UserActionService:
                     # No taste to delete
                     return create_response(
                         code=404,
-                        message="Taste not found for deletion"
+                        data={"dishId": dish_id, "action": "delete_failed"},
+                        message=f"Taste not found for deletion (dishId: {dish_id})"
                     )
 
             # Validate recommend_state for create/update operations
             if recommend_state not in [0, 1, 2]:
                 print(f"Invalid recommend_state: {recommend_state}")
-                return create_response(code=400, message="Invalid recommend state. Must be 0, 1, 2, or null")
+                return create_response(
+                    code=400, 
+                    data={"dishId": dish_id, "recommendState": recommend_state, "action": "validation_failed"},
+                    message=f"Invalid recommend state. Must be 0, 1, 2, or null (dishId: {dish_id}, got: {recommend_state})"
+                )
             
             # Validate and process media IDs (handle both IDs and URLs)
             valid_media_ids = []
@@ -613,19 +622,31 @@ class UserActionService:
                             valid_media_ids.append(media._id)
                         else:
                             print(f"Invalid media URL: {media_id}")
-                            return create_response(code=400, message=f"Invalid media URL: {media_id}")
+                            return create_response(
+                                code=400,
+                                data={"dishId": dish_id, "mediaId": media_id, "action": "validation_failed"},
+                                message=f"Invalid media URL: {media_id} (dishId: {dish_id})"
+                            )
                     else:
                         # Handle ID-based media
                         if Media.query.filter_by(_id=media_id).first():
                             valid_media_ids.append(media_id)
                         else:
                             print(f"Invalid media ID: {media_id}")
-                            return create_response(code=400, message=f"Invalid media ID: {media_id}")
+                            return create_response(
+                                code=400,
+                                data={"dishId": dish_id, "mediaId": media_id, "action": "validation_failed"},
+                                message=f"Invalid media ID: {media_id} (dishId: {dish_id})"
+                            )
             
             # Validate mood value
             if mood not in [0, 1, 2, 3]:
                 print(f"Invalid mood value: {mood}")
-                return create_response(code=400, message="Invalid mood value. Must be 0, 1, 2, or 3")
+                return create_response(
+                    code=400,
+                    data={"dishId": dish_id, "mood": mood, "action": "validation_failed"},
+                    message=f"Invalid mood value. Must be 0, 1, 2, or 3 (dishId: {dish_id}, got: {mood})"
+                )
 
             # Handle UPDATE or RESTORE operation (existing taste found)
             if existing_taste or deleted_taste:
@@ -740,7 +761,11 @@ class UserActionService:
             print(f"Error processing taste: {e}")
             import traceback
             traceback.print_exc()
-            return create_response(code=500, message=f"Failed to process taste: {str(e)}")
+            return create_response(
+                code=500,
+                data={"dishId": dish_id, "tasteId": taste_id, "action": "error"},
+                message=f"Failed to process taste: {str(e)} (dishId: {dish_id})"
+            )
 
     @staticmethod
     def create_taste(user_id, dish_id, media_ids=[], comment="", mood=0, tags=[], recommend_state=0):
