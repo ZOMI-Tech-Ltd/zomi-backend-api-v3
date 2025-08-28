@@ -564,16 +564,16 @@ class UserActionService:
                     
                     db.session.commit()
                     
-                    # Send RabbitMQ notification
-                    rabbitmq = UserActionService._get_rabbitmq_service()
-                    rabbitmq.send_taste_create(
-                        taste_id=existing_taste._id,
-                        user_id=user_id,
-                        dish_id=existing_taste.dishId,
-                        comment="",
-                        recommend_state=TasteRecommendState.DEFAULT.value,
-                        media_ids=[]
-                    )
+                    # # Send RabbitMQ notification
+                    # rabbitmq = UserActionService._get_rabbitmq_service()
+                    # rabbitmq.send_taste_create(
+                    #     taste_id=existing_taste._id,
+                    #     user_id=user_id,
+                    #     dish_id=existing_taste.dishId,
+                    #     comment="",
+                    #     recommend_state=TasteRecommendState.DEFAULT.value,
+                    #     media_ids=[]
+                    # )
                     
                     return create_response(
                         code=0,
@@ -637,15 +637,15 @@ class UserActionService:
                 UserActionService._update_dish_recommend_count(taste.dishId)
                 
                 # Send RabbitMQ notification
-                rabbitmq = UserActionService._get_rabbitmq_service()
-                rabbitmq.send_taste_create(
-                    taste_id=taste._id,
-                    user_id=taste.userId,
-                    dish_id=taste.dishId,
-                    comment=taste.comment,
-                    recommend_state=recommend_state,
-                    media_ids=taste.mediaIds
-                )
+                # rabbitmq = UserActionService._get_rabbitmq_service()
+                # rabbitmq.send_taste_create(
+                #     taste_id=taste._id,
+                #     user_id=taste.userId,
+                #     dish_id=taste.dishId,
+                #     comment=taste.comment,
+                #     recommend_state=recommend_state,
+                #     media_ids=taste.mediaIds
+                # )
                 
                 return create_response(
                     code=0,
@@ -699,16 +699,16 @@ class UserActionService:
                 
                 UserActionService._update_dish_recommend_count(dish_id)
                 
-                # Send RabbitMQ notification
-                rabbitmq = UserActionService._get_rabbitmq_service()
-                rabbitmq.send_taste_create(
-                    taste_id=taste._id,
-                    user_id=taste.userId,
-                    dish_id=taste.dishId,
-                    comment=taste.comment,
-                    recommend_state=recommend_state,
-                    media_ids=taste.mediaIds
-                )
+                # # Send RabbitMQ notification
+                # rabbitmq = UserActionService._get_rabbitmq_service()
+                # rabbitmq.send_taste_create(
+                #     taste_id=taste._id,
+                #     user_id=taste.userId,
+                #     dish_id=taste.dishId,
+                #     comment=taste.comment,
+                #     recommend_state=recommend_state,
+                #     media_ids=taste.mediaIds
+                # )
                 
                 return create_response(
                     code=0,

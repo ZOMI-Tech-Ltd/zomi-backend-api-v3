@@ -178,12 +178,3 @@ Expected: Creates new taste (state 30), updates existing taste (state 4), and de
   "message": "Some taste operations failed"
 }
 ```
-
-## Key Features
-1. **Unified API**: Single endpoint handles create, update, and delete operations
-2. **Flexible Querying**: Can use either `tasteId` or `userId + dishId` combination
-3. **Soft Delete**: Uses `deletedAt` timestamp for deletion
-4. **Auto-restore**: Deleted tastes are automatically restored when user acts on them again
-5. **State Calculation**: Automatic state calculation based on content and recommendState
-6. **Batch Processing**: Process multiple tastes in a single request
-7. **Backward Compatible**: Existing `recommend_dish` and `unrecommend_dish` methods now use the unified `process_taste` internally
