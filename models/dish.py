@@ -50,7 +50,7 @@ class Dish(db.Model):
     collectionCnt = db.Column("collectionCnt", nullable=True, default=0)
     commentCnt = db.Column("commentCnt", nullable=True, default=0)
     likeCnt = db.Column("likeCnt", nullable=True, default=0)
-    source = db.Column("source", nullable=True,default="THIRD_PARTY")
+    source = db.Column("source", nullable=True,default="USER_CREATED")
 
 
 
