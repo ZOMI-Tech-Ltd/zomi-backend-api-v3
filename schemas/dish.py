@@ -44,7 +44,7 @@ class DishOverviewSchema(ma.Schema):
     #new fields for show if current user collected or recommended
     isCollected = ma.Boolean(attribute='_is_collected', dump_only=True)
     isRecommended = ma.Boolean(attribute='_is_recommended', dump_only=True)
-    recommendState = ma.Integer(attribute='_recommend_state', dump_only=True)
+    recommendState = ma.Integer(attribute='_recommend_state', dump_only=True, allow_none=True, dump_default=0)
 
 
 
