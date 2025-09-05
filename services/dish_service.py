@@ -83,7 +83,7 @@ class DishService:
             #logic for show if current user collected or recommended
             is_collected = False
             is_recommended = False
-            recommend_state = 0  # default value
+            recommend_state = None  # default value
 
             if current_user_id:
                 is_collected = Collection.active_collections().filter_by(
