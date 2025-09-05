@@ -83,6 +83,7 @@ class DishService:
             #logic for show if current user collected or recommended
             is_collected = False
             is_recommended = False
+            recommend_state = 0  # default value
 
             if current_user_id:
                 is_collected = Collection.active_collections().filter_by(
@@ -90,14 +91,27 @@ class DishService:
                     object=dish_id
                 ).first() is not None
                 
-                is_recommended = Taste.active_tastes().filter_by(
+                taste_record = Taste.active_tastes().filter_by(
                     userId=current_user_id,
                     dishId=dish_id
-                ).first() is not None
+                ).first()
+                
+                is_recommended = taste_record is not None
+                
+                # Calculate recommendState based on taste state
+                if taste_record and taste_record.state is not None:
+                    state_value = taste_record.state
+                    if state_value in [1, 3, 4, 100]:
+                        recommend_state = 1
+                    elif state_value in [0, 30, 40, 5]:
+                        recommend_state = 0
+                    elif state_value in [2, 31, 41, 101]:
+                        recommend_state = 2
     
 
             dish._is_collected = is_collected
             dish._is_recommended = is_recommended
+            dish._recommend_state = recommend_state
 
             
     
