@@ -141,7 +141,7 @@ class DishOverviewSchema(ma.Schema):
             '_id', 'title', 'images', 
             'price', 'ratings',
                 'recommendedCount', 'merchant', 'flavorTags', 
-                'uniqueTags', 'ingredients', 'description', 'isCollected', 'isRecommended'
+                'uniqueTags', 'ingredients', 'description', 'isCollected', 'isRecommended', 'recommendState'
         )
 
 
